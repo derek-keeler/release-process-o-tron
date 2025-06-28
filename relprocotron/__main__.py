@@ -105,21 +105,23 @@ def main(
     click.echo(f"Output File: {output_file}")
 
     # Generate release activities JSON
+    _generate_release_activities(
+        release_name=release_name,
+        release_tag=release_tag,
+        release_type=release_type,
+        release_date=release_date,
+        project_url=project_url,
+        software_name=software_name,
+        software_version=software_version,
+        comments=comment_list,
+        output_file=output_file,
+        dry_run=dry_run
+    )
+
     if not dry_run:
-        _generate_release_activities(
-            release_name=release_name,
-            release_tag=release_tag,
-            release_type=release_type,
-            release_date=release_date,
-            project_url=project_url,
-            software_name=software_name,
-            software_version=software_version,
-            comments=comment_list,
-            output_file=output_file
-        )
         click.echo(f"\nRelease activities written to: {output_file}")
     else:
-        click.echo("\nDry run mode - no files written")
+        click.echo("\nDry run mode - JSON generated but no files written")
 
 
 def _generate_release_activities(
@@ -131,7 +133,8 @@ def _generate_release_activities(
     software_name: str,
     software_version: str,
     comments: list[str],
-    output_file: str
+    output_file: str,
+    dry_run: bool = False
 ) -> None:
     """Generate release activities JSON from template."""
     # Get template directory
@@ -139,7 +142,7 @@ def _generate_release_activities(
 
     # Set up Jinja2 environment
     env = Environment(loader=FileSystemLoader(template_dir))  # noqa: S701 - JSON output, not HTML
-    template = env.get_template("release_activities.json.j2")
+    template = env.get_template("release_process_o_tron.j2.json")
 
     # Render template with provided data
     rendered_json = template.render(
@@ -156,12 +159,18 @@ def _generate_release_activities(
     # Parse to validate JSON format
     parsed_data = json.loads(rendered_json)
 
-    # Write formatted JSON to output file
-    output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # In dry-run mode, show the JSON content but don't write to file
+    if dry_run:
+        click.echo("\nGenerated JSON content:")
+        click.echo("=" * 50)
+        click.echo(json.dumps(parsed_data, indent=2, ensure_ascii=False))
+    else:
+        # Write formatted JSON to output file
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with output_path.open("w", encoding="utf-8") as f:
-        json.dump(parsed_data, f, indent=2, ensure_ascii=False)
+        with output_path.open("w", encoding="utf-8") as f:
+            json.dump(parsed_data, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == '__main__':

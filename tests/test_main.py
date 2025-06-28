@@ -74,10 +74,15 @@ def test_main_with_dry_run() -> None:
 
         assert result.exit_code == 0
         assert "Dry Run: True" in result.output
-        assert "Dry run mode - no files written" in result.output
+        assert "Dry run mode - JSON generated but no files written" in result.output
+        assert "Generated JSON content:" in result.output
 
         # Verify JSON file was NOT created in dry run mode
         assert not Path("dry_run_output.json").exists()
+
+        # Verify that JSON content is displayed in the output
+        assert '"name": "Test Release"' in result.output
+        assert '"tag": "v1.0.0"' in result.output
 
 
 def test_main_with_comments() -> None:

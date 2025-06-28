@@ -6,8 +6,10 @@
     "date": "{{ release_date }}",
     "project_url": "{{ project_url }}",
     "software_name": "{{ software_name }}",
-    "software_version": "{{ software_version }}"{% if comments %},
-    "comments": {{ comments | tojson }}{% endif %}
+    "software_version": "{{ software_version }}"
+    {%- if comments %},
+    "comments": {{ comments | tojson }}
+    {%- endif %}
   },
   "tasks": [
     {
@@ -179,7 +181,8 @@
           "category": "Documentation"
         }
       ]
-    }{% if release_type != "dev" %},
+    }
+    {%- if release_type != "dev" %},
     {
       "title": "Publication",
       "description": [
@@ -211,6 +214,7 @@
           "category": "Distribution"
         }
       ]
-    }{% endif %}
+    }
+    {%- endif %}
   ]
 }
