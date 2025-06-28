@@ -1,0 +1,216 @@
+{
+  "release": {
+    "name": "{{ release_name }}",
+    "tag": "{{ release_tag }}",
+    "type": "{{ release_type }}",
+    "date": "{{ release_date }}",
+    "project_url": "{{ project_url }}",
+    "software_name": "{{ software_name }}",
+    "software_version": "{{ software_version }}"{% if comments %},
+    "comments": {{ comments | tojson }}{% endif %}
+  },
+  "tasks": [
+    {
+      "title": "Pre-Release Code Quality",
+      "description": [
+        "Ensure code quality standards are met before release",
+        "Run comprehensive checks on codebase"
+      ],
+      "project": "{{ software_name }}",
+      "tags": ["quality", "pre-release"],
+      "category": "Infrastructure",
+      "children": [
+        {
+          "title": "Run Linting",
+          "description": [
+            "Execute ruff linting checks",
+            "Ensure code follows style guidelines"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["linting", "ruff"],
+          "category": "Code Quality"
+        },
+        {
+          "title": "Type Checking",
+          "description": [
+            "Run mypy static type checking",
+            "Verify type annotations are correct"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["typing", "mypy"],
+          "category": "Code Quality"
+        }
+      ]
+    },
+    {
+      "title": "Testing Phase",
+      "description": [
+        "Execute comprehensive test suite",
+        "Verify functionality across supported platforms"
+      ],
+      "project": "{{ software_name }}",
+      "tags": ["testing", "validation"],
+      "category": "Quality Assurance",
+      "children": [
+        {
+          "title": "Unit Tests",
+          "description": [
+            "Run pytest test suite",
+            "Generate coverage reports"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["pytest", "unit-tests"],
+          "category": "Testing"
+        },
+        {
+          "title": "Cross-Platform Testing",
+          "description": [
+            "Test on Ubuntu and Windows platforms",
+            "Verify Python 3.12 compatibility"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["cross-platform", "compatibility"],
+          "category": "Testing"
+        }
+      ]
+    },
+    {
+      "title": "Package Building",
+      "description": [
+        "Build distribution packages",
+        "Validate package metadata"
+      ],
+      "project": "{{ software_name }}",
+      "tags": ["packaging", "distribution"],
+      "category": "Build",
+      "children": [
+        {
+          "title": "Create Source Distribution",
+          "description": [
+            "Build source distribution with python -m build",
+            "Verify sdist contents"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["sdist", "build"],
+          "category": "Packaging"
+        },
+        {
+          "title": "Create Wheel Distribution",
+          "description": [
+            "Build wheel distribution",
+            "Validate wheel metadata"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["wheel", "build"],
+          "category": "Packaging"
+        },
+        {
+          "title": "Validate with Twine",
+          "description": [
+            "Run twine check on built packages",
+            "Ensure PyPI compatibility"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["twine", "validation"],
+          "category": "Packaging"
+        }
+      ]
+    },
+    {
+      "title": "Documentation Updates",
+      "description": [
+        "Update documentation for release",
+        "Ensure changelog and version info are current"
+      ],
+      "project": "{{ software_name }}",
+      "tags": ["documentation", "changelog"],
+      "category": "Documentation",
+      "children": [
+        {
+          "title": "Update Version Information",
+          "description": [
+            "Update version in pyproject.toml",
+            "Verify version consistency across files"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["versioning"],
+          "category": "Documentation"
+        },
+        {
+          "title": "Update README",
+          "description": [
+            "Review and update README.md",
+            "Ensure installation and usage instructions are current"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["readme"],
+          "category": "Documentation"
+        }
+      ]
+    },
+    {
+      "title": "Release Preparation",
+      "description": [
+        "Prepare for release deployment",
+        "Create release artifacts"
+      ],
+      "project": "{{ software_name }}",
+      "tags": ["release", "preparation"],
+      "category": "Release Management",
+      "children": [
+        {
+          "title": "Git Tag Creation",
+          "description": [
+            "Create and push git tag {{ release_tag }}",
+            "Ensure tag follows semantic versioning"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["git", "tagging"],
+          "category": "Version Control"
+        },
+        {
+          "title": "Release Notes",
+          "description": [
+            "Prepare release notes for {{ release_name }}",
+            "Document new features, fixes, and breaking changes"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["release-notes", "documentation"],
+          "category": "Documentation"
+        }
+      ]
+    }{% if release_type != "dev" %},
+    {
+      "title": "Publication",
+      "description": [
+        "Publish release to distribution channels",
+        "Make release available to users"
+      ],
+      "project": "{{ software_name }}",
+      "tags": ["publication", "deployment"],
+      "category": "Release Management",
+      "children": [
+        {
+          "title": "PyPI Publication",
+          "description": [
+            "Upload packages to PyPI",
+            "Verify package availability"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["pypi", "publishing"],
+          "category": "Distribution"
+        },
+        {
+          "title": "GitHub Release",
+          "description": [
+            "Create GitHub release from tag {{ release_tag }}",
+            "Attach release artifacts"
+          ],
+          "project": "{{ software_name }}",
+          "tags": ["github", "release"],
+          "category": "Distribution"
+        }
+      ]
+    }{% endif %}
+  ]
+}
