@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """CLI entrypoint for Release Process-O-Tron."""
 
-from typing import List
 import click
 
 
@@ -73,13 +72,13 @@ def main(
     comment: tuple[str, ...]
 ) -> None:
     """Release Process-O-Tron CLI tool.
-    
+
     Generate hierarchical work items for your upcoming release,
     and see the state of the release throughout its duration.
     """
     # Convert tuple to list for consistency with type hint
-    comment_list: List[str] = list(comment)
-    
+    comment_list: list[str] = list(comment)
+
     # Echo all received parameters for verification
     click.echo("Release Process-O-Tron - Parameter Verification")
     click.echo("=" * 50)
