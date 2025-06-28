@@ -1,0 +1,99 @@
+# Project configuration for release-process-o-tron
+# Targeting Python 3.12
+
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "release-process-o-tron"
+version = "0.1.0"
+description = "Generate hierarchical work items for your upcoming release, and see the state of the release throughout its duration."
+requires-python = ">=3.12"
+dependencies = [
+    "click==8.2.1"
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy==1.16.1",
+    "pytest==8.4.1",
+    "pytest-cov==6.2.1",
+    "ruff==0.12.1"
+]
+
+[project.scripts]
+relprocotron = "relprocotron.__main__:main"
+
+# Tool configurations
+
+# Pytest configuration with coverage options
+[tool.pytest.ini_options]
+addopts = "--cov=relprocotron --cov-report=html --cov-report=term --cov-report=xml"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# MyPy configuration to consider only ./relprocotron/ folder
+[tool.mypy]
+files = "./relprocotron/"
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# Ruff configuration with line length 120 and Python 3.12+ target
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["relprocotron"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "UP",  # pyupgrade
+    "ANN", # flake8-annotations
+    "S",   # flake8-bandit
+    "BLE", # flake8-blind-except
+    "B",   # flake8-bugbear
+    "A",   # flake8-builtins
+    "C4",  # flake8-comprehensions
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "RUF", # Ruff-specific rules
+]
+ignore = [
+    "D203", # 1 blank line required before class docstring
+    "D213", # Multi-line docstring summary should start at the second line
+]
+unfixable = [
+    "F401", # Don't remove unused imports
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["relprocotron"]
