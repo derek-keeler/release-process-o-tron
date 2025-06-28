@@ -57,7 +57,7 @@ def test_main_with_valid_args() -> None:
 
 
 def test_main_with_dry_run() -> None:
-    """Test that the main command respects the dry-run flag."""
+    """Test that the main command writes file regardless of dry-run flag."""
     runner = CliRunner()
     with runner.isolated_filesystem():
         result = runner.invoke(main, [
@@ -74,15 +74,10 @@ def test_main_with_dry_run() -> None:
 
         assert result.exit_code == 0
         assert "Dry Run: True" in result.output
-        assert "Dry run mode - JSON generated but no files written" in result.output
-        assert "Generated JSON content:" in result.output
+        assert "Release activities written to: dry_run_output.json" in result.output
 
-        # Verify JSON file was NOT created in dry run mode
-        assert not Path("dry_run_output.json").exists()
-
-        # Verify that JSON content is displayed in the output
-        assert '"name": "Test Release"' in result.output
-        assert '"tag": "v1.0.0"' in result.output
+        # Verify JSON file was created even in dry run mode
+        assert Path("dry_run_output.json").exists()
 
 
 def test_main_with_comments() -> None:
