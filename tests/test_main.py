@@ -27,7 +27,7 @@ def test_main_missing_required_args() -> None:
     result = runner.invoke(main, [])
 
     assert result.exit_code != 0
-    assert "Missing option" in result.output
+    assert "Missing required options for JSON generation" in result.output
 
 
 def test_main_with_valid_args() -> None:
@@ -217,7 +217,7 @@ def test_missing_output_file() -> None:
     ])
 
     assert result.exit_code != 0
-    assert "Missing option '--output-file'" in result.output
+    assert "Missing required options for JSON generation" in result.output
 
 
 def test_json_validity_all_release_types() -> None:
@@ -363,3 +363,83 @@ def test_json_structure_consistency() -> None:
                         assert isinstance(child, dict), f"Task {i} child {j} must be an object"
                         for field in required_task_fields:
                             assert field in child, f"Task {i} child {j} missing required field: {field}"
+
+
+def test_create_issues_dry_run() -> None:
+    """Test that create-issues dry run works correctly."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        # First create a JSON file
+        result = runner.invoke(main, [
+            "--release-name", "Test Release",
+            "--release-tag", "v1.0.0",
+            "--release-type", "dev",
+            "--release-date", "2025-01-20",
+            "--project-url", "https://github.com/test/test",
+            "--software-name", "Test App",
+            "--software-version", "1.0.0",
+            "--output-file", "test_release.json"
+        ])
+        assert result.exit_code == 0
+
+        # Now test dry run issue creation
+        result = runner.invoke(main, [
+            "--create-issues",
+            "--input-file", "test_release.json",
+            "--github-repo", "test/test",
+            "--github-token", "fake-token",
+            "--dry-run"
+        ])
+
+        assert result.exit_code == 0
+        assert "DRY RUN: No actual issues will be created" in result.output
+        assert "Creating issue:" in result.output
+        assert "Successfully created 0 issues" in result.output
+
+
+def test_create_issues_missing_required_options() -> None:
+    """Test that create-issues fails when required options are missing."""
+    runner = CliRunner()
+    
+    # Test missing --input-file
+    result = runner.invoke(main, [
+        "--create-issues",
+        "--github-repo", "test/test",
+        "--github-token", "fake-token"
+    ])
+    assert result.exit_code != 0
+    assert "Missing required options for issue creation" in result.output
+
+    # Test missing --github-repo
+    result = runner.invoke(main, [
+        "--create-issues",
+        "--input-file", "test.json",
+        "--github-token", "fake-token"
+    ])
+    assert result.exit_code != 0
+    assert "Missing required options for issue creation" in result.output
+
+    # Test missing --github-token
+    result = runner.invoke(main, [
+        "--create-issues",
+        "--input-file", "test.json",
+        "--github-repo", "test/test"
+    ])
+    assert result.exit_code != 0
+    assert "Missing required options for issue creation" in result.output
+
+
+def test_create_issues_input_file_not_found() -> None:
+    """Test that create-issues fails when input file doesn't exist."""
+    runner = CliRunner()
+    
+    result = runner.invoke(main, [
+        "--create-issues",
+        "--input-file", "nonexistent.json",
+        "--github-repo", "test/test",
+        "--github-token", "fake-token",
+        "--dry-run"
+    ])
+    
+    assert result.exit_code != 0
+    assert "Input file not found" in result.output

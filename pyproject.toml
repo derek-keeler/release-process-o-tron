@@ -42,6 +42,9 @@ dev = [
     "pytest-cov==6.2.1",
     "ruff==0.12.1"
 ]
+github = [
+    "PyGithub==2.5.0"
+]
 
 [project.scripts]
 relprocotron = "relprocotron.__main__:main"
