@@ -21,6 +21,7 @@
       "project": "{{ software_name }}",
       "tags": ["quality", "pre-release"],
       "category": "Infrastructure",
+      "priority": 1,
       "children": [
         {
           "title": "Run Linting",
@@ -30,7 +31,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["linting", "ruff"],
-          "category": "Code Quality"
+          "category": "Code Quality",
+          "priority": 1
         },
         {
           "title": "Type Checking",
@@ -40,7 +42,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["typing", "mypy"],
-          "category": "Code Quality"
+          "category": "Code Quality",
+          "priority": 2
         }
       ]
     },
@@ -53,6 +56,7 @@
       "project": "{{ software_name }}",
       "tags": ["testing", "validation"],
       "category": "Quality Assurance",
+      "priority": 2,
       "children": [
         {
           "title": "Unit Tests",
@@ -62,7 +66,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["pytest", "unit-tests"],
-          "category": "Testing"
+          "category": "Testing",
+          "priority": 1
         },
         {
           "title": "Cross-Platform Testing",
@@ -72,7 +77,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["cross-platform", "compatibility"],
-          "category": "Testing"
+          "category": "Testing",
+          "priority": 2
         }
       ]
     },
@@ -85,6 +91,7 @@
       "project": "{{ software_name }}",
       "tags": ["packaging", "distribution"],
       "category": "Build",
+      "priority": 3,
       "children": [
         {
           "title": "Create Source Distribution",
@@ -94,7 +101,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["sdist", "build"],
-          "category": "Packaging"
+          "category": "Packaging",
+          "priority": 1
         },
         {
           "title": "Create Wheel Distribution",
@@ -104,7 +112,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["wheel", "build"],
-          "category": "Packaging"
+          "category": "Packaging",
+          "priority": 2
         },
         {
           "title": "Validate with Twine",
@@ -114,7 +123,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["twine", "validation"],
-          "category": "Packaging"
+          "category": "Packaging",
+          "priority": 3
         }
       ]
     },
@@ -127,6 +137,7 @@
       "project": "{{ software_name }}",
       "tags": ["documentation", "changelog"],
       "category": "Documentation",
+      "priority": 4,
       "children": [
         {
           "title": "Update Version Information",
@@ -136,7 +147,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["versioning"],
-          "category": "Documentation"
+          "category": "Documentation",
+          "priority": 1
         },
         {
           "title": "Update README",
@@ -146,7 +158,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["readme"],
-          "category": "Documentation"
+          "category": "Documentation",
+          "priority": 2
         }
       ]
     },
@@ -159,6 +172,7 @@
       "project": "{{ software_name }}",
       "tags": ["release", "preparation"],
       "category": "Release Management",
+      "priority": 5,
       "children": [
         {
           "title": "Git Tag Creation",
@@ -168,7 +182,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["git", "tagging"],
-          "category": "Version Control"
+          "category": "Version Control",
+          "priority": 1
         },
         {
           "title": "Release Notes",
@@ -178,7 +193,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["release-notes", "documentation"],
-          "category": "Documentation"
+          "category": "Documentation",
+          "priority": 2
         }
       ]
     }
@@ -192,6 +208,7 @@
       "project": "{{ software_name }}",
       "tags": ["publication", "deployment"],
       "category": "Release Management",
+      "priority": 6,
       "children": [
         {
           "title": "PyPI Publication",
@@ -201,7 +218,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["pypi", "publishing"],
-          "category": "Distribution"
+          "category": "Distribution",
+          "priority": 1
         },
         {
           "title": "GitHub Release",
@@ -211,7 +229,8 @@
           ],
           "project": "{{ software_name }}",
           "tags": ["github", "release"],
-          "category": "Distribution"
+          "category": "Distribution",
+          "priority": 2
         }
       ]
     }
