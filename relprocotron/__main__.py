@@ -16,6 +16,7 @@ try:
 except ImportError:
     GITHUB_AVAILABLE = False
     Repository = Any  # type: ignore[misc,assignment]
+    Issue = Any  # type: ignore[misc,assignment]
 
 
 @click.command()
