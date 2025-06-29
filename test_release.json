@@ -1,15 +1,12 @@
 {
   "release": {
-    "name": "{{ release_name }}",
-    "tag": "{{ release_tag }}",
-    "type": "{{ release_type }}",
-    "date": "{{ release_date }}",
-    "project_url": "{{ project_url }}",
-    "software_name": "{{ software_name }}",
-    "software_version": "{{ software_version }}"
-    {%- if comments %},
-    "comments": {{ comments | tojson }}
-    {%- endif %}
+    "name": "Test Release",
+    "tag": "v1.0.0",
+    "type": "dev",
+    "date": "2025-01-20",
+    "project_url": "https://github.com/test/test",
+    "software_name": "Test App",
+    "software_version": "1.0.0"
   },
   "tasks": [
     {
@@ -18,8 +15,11 @@
         "Ensure code quality standards are met before release",
         "Run comprehensive checks on codebase"
       ],
-      "project": "{{ software_name }}",
-      "tags": ["quality", "pre-release"],
+      "project": "Test App",
+      "tags": [
+        "quality",
+        "pre-release"
+      ],
       "category": "Infrastructure",
       "priority": 1,
       "children": [
@@ -29,8 +29,11 @@
             "Execute ruff linting checks",
             "Ensure code follows style guidelines"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["linting", "ruff"],
+          "project": "Test App",
+          "tags": [
+            "linting",
+            "ruff"
+          ],
           "category": "Code Quality",
           "priority": 1
         },
@@ -40,8 +43,11 @@
             "Run mypy static type checking",
             "Verify type annotations are correct"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["typing", "mypy"],
+          "project": "Test App",
+          "tags": [
+            "typing",
+            "mypy"
+          ],
           "category": "Code Quality",
           "priority": 2
         }
@@ -53,8 +59,11 @@
         "Execute comprehensive test suite",
         "Verify functionality across supported platforms"
       ],
-      "project": "{{ software_name }}",
-      "tags": ["testing", "validation"],
+      "project": "Test App",
+      "tags": [
+        "testing",
+        "validation"
+      ],
       "category": "Quality Assurance",
       "priority": 2,
       "children": [
@@ -64,8 +73,11 @@
             "Run pytest test suite",
             "Generate coverage reports"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["pytest", "unit-tests"],
+          "project": "Test App",
+          "tags": [
+            "pytest",
+            "unit-tests"
+          ],
           "category": "Testing",
           "priority": 1
         },
@@ -75,8 +87,11 @@
             "Test on Ubuntu and Windows platforms",
             "Verify Python 3.12 compatibility"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["cross-platform", "compatibility"],
+          "project": "Test App",
+          "tags": [
+            "cross-platform",
+            "compatibility"
+          ],
           "category": "Testing",
           "priority": 2
         }
@@ -88,8 +103,11 @@
         "Build distribution packages",
         "Validate package metadata"
       ],
-      "project": "{{ software_name }}",
-      "tags": ["packaging", "distribution"],
+      "project": "Test App",
+      "tags": [
+        "packaging",
+        "distribution"
+      ],
       "category": "Build",
       "priority": 3,
       "children": [
@@ -99,8 +117,11 @@
             "Build source distribution with python -m build",
             "Verify sdist contents"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["sdist", "build"],
+          "project": "Test App",
+          "tags": [
+            "sdist",
+            "build"
+          ],
           "category": "Packaging",
           "priority": 1
         },
@@ -110,8 +131,11 @@
             "Build wheel distribution",
             "Validate wheel metadata"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["wheel", "build"],
+          "project": "Test App",
+          "tags": [
+            "wheel",
+            "build"
+          ],
           "category": "Packaging",
           "priority": 2
         },
@@ -121,8 +145,11 @@
             "Run twine check on built packages",
             "Ensure PyPI compatibility"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["twine", "validation"],
+          "project": "Test App",
+          "tags": [
+            "twine",
+            "validation"
+          ],
           "category": "Packaging",
           "priority": 3
         }
@@ -134,8 +161,11 @@
         "Update documentation for release",
         "Ensure changelog and version info are current"
       ],
-      "project": "{{ software_name }}",
-      "tags": ["documentation", "changelog"],
+      "project": "Test App",
+      "tags": [
+        "documentation",
+        "changelog"
+      ],
       "category": "Documentation",
       "priority": 4,
       "children": [
@@ -145,8 +175,10 @@
             "Update version in pyproject.toml",
             "Verify version consistency across files"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["versioning"],
+          "project": "Test App",
+          "tags": [
+            "versioning"
+          ],
           "category": "Documentation",
           "priority": 1
         },
@@ -156,8 +188,10 @@
             "Review and update README.md",
             "Ensure installation and usage instructions are current"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["readme"],
+          "project": "Test App",
+          "tags": [
+            "readme"
+          ],
           "category": "Documentation",
           "priority": 2
         }
@@ -169,71 +203,43 @@
         "Prepare for release deployment",
         "Create release artifacts"
       ],
-      "project": "{{ software_name }}",
-      "tags": ["release", "preparation"],
+      "project": "Test App",
+      "tags": [
+        "release",
+        "preparation"
+      ],
       "category": "Release Management",
       "priority": 5,
       "children": [
         {
           "title": "Git Tag Creation",
           "description": [
-            "Create and push git tag {{ release_tag }}",
+            "Create and push git tag v1.0.0",
             "Ensure tag follows semantic versioning"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["git", "tagging"],
+          "project": "Test App",
+          "tags": [
+            "git",
+            "tagging"
+          ],
           "category": "Version Control",
           "priority": 1
         },
         {
           "title": "Release Notes",
           "description": [
-            "Prepare release notes for {{ release_name }}",
+            "Prepare release notes for Test Release",
             "Document new features, fixes, and breaking changes"
           ],
-          "project": "{{ software_name }}",
-          "tags": ["release-notes", "documentation"],
+          "project": "Test App",
+          "tags": [
+            "release-notes",
+            "documentation"
+          ],
           "category": "Documentation",
           "priority": 2
         }
       ]
     }
-    {%- if release_type != "dev" %},
-    {
-      "title": "Publication",
-      "description": [
-        "Publish release to distribution channels",
-        "Make release available to users"
-      ],
-      "project": "{{ software_name }}",
-      "tags": ["publication", "deployment"],
-      "category": "Release Management",
-      "priority": 6,
-      "children": [
-        {
-          "title": "PyPI Publication",
-          "description": [
-            "Upload packages to PyPI",
-            "Verify package availability"
-          ],
-          "project": "{{ software_name }}",
-          "tags": ["pypi", "publishing"],
-          "category": "Distribution",
-          "priority": 1
-        },
-        {
-          "title": "GitHub Release",
-          "description": [
-            "Create GitHub release from tag {{ release_tag }}",
-            "Attach release artifacts"
-          ],
-          "project": "{{ software_name }}",
-          "tags": ["github", "release"],
-          "category": "Distribution",
-          "priority": 2
-        }
-      ]
-    }
-    {%- endif %}
   ]
 }

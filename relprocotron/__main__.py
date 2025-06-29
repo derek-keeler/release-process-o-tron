@@ -2,13 +2,12 @@
 """CLI entrypoint for Release Process-O-Tron."""
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
 import click
-from github import Github
-from github.Issue import Issue
-from github.Repository import Repository
+import requests
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -207,6 +206,142 @@ def _generate_release_activities(
         json.dump(parsed_data, f, indent=2, ensure_ascii=False)
 
 
+class GitHubClient:
+    """GitHub REST API client with retry functionality."""
+
+    def __init__(self, token: str, repo: str) -> None:
+        """Initialize GitHub client.
+
+        Args:
+            token: GitHub personal access token
+            repo: Repository in format 'owner/repo'
+        """
+        self.token = token
+        self.repo = repo
+        self.base_url = "https://api.github.com"
+        self.session = requests.Session()
+        self.session.headers.update({
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "release-process-o-tron"
+        })
+
+    def _make_request(
+        self,
+        method: str,
+        endpoint: str,
+        data: dict[str, Any] | None = None,
+        max_retries: int = 3,
+        base_delay: float = 1.0
+    ) -> dict[str, Any]:
+        """Make HTTP request with retry logic and exponential backoff.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            endpoint: API endpoint path
+            data: Request payload
+            max_retries: Maximum number of retry attempts
+            base_delay: Base delay for exponential backoff
+
+        Returns:
+            Response data as dictionary
+
+        Raises:
+            requests.RequestException: If request fails after all retries
+        """
+        url = f"{self.base_url}{endpoint}"
+
+        for attempt in range(max_retries + 1):
+            try:
+                if method.upper() == "GET":
+                    response = self.session.get(url, timeout=30)
+                elif method.upper() == "POST":
+                    response = self.session.post(url, json=data, timeout=30)
+                elif method.upper() == "PATCH":
+                    response = self.session.patch(url, json=data, timeout=30)
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+
+                # Handle rate limiting with backoff
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get("Retry-After", base_delay * (2 ** attempt)))
+                    if attempt < max_retries:
+                        msg = f"Rate limited, waiting {retry_after} seconds before retry {attempt + 1}/{max_retries}"
+                        click.echo(msg)
+                        time.sleep(retry_after)
+                        continue
+
+                # Handle successful responses
+                if response.status_code in (200, 201):
+                    response_data: dict[str, Any] = response.json()
+                    return response_data
+
+                # Handle client/server errors
+                response.raise_for_status()
+
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    msg = f"Request failed, retrying in {delay} seconds (attempt {attempt + 1}/{max_retries}): {e}"
+                    click.echo(msg)
+                    time.sleep(delay)
+                    continue
+                raise
+            except requests.exceptions.RequestException:
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    click.echo(f"Request failed, retrying in {delay} seconds (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(delay)
+                    continue
+                raise
+
+        # If we get here, all retries failed
+        raise requests.RequestException(f"Request to {url} failed after {max_retries} retries")
+
+    def create_issue(self, title: str, body: str, labels: list[str] | None = None) -> dict[str, Any]:
+        """Create a GitHub issue.
+
+        Args:
+            title: Issue title
+            body: Issue body/description
+            labels: List of label names
+
+        Returns:
+            Created issue data
+        """
+        data: dict[str, Any] = {
+            "title": title,
+            "body": body
+        }
+        if labels:
+            data["labels"] = labels
+
+        return self._make_request("POST", f"/repos/{self.repo}/issues", data)
+
+    def get_issue(self, issue_number: int) -> dict[str, Any]:
+        """Get issue details.
+
+        Args:
+            issue_number: Issue number
+
+        Returns:
+            Issue data
+        """
+        return self._make_request("GET", f"/repos/{self.repo}/issues/{issue_number}")
+
+    def update_issue(self, issue_number: int, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+        """Update an existing issue.
+
+        Args:
+            issue_number: Issue number
+            **kwargs: Fields to update (title, body, labels, etc.)
+
+        Returns:
+            Updated issue data
+        """
+        return self._make_request("PATCH", f"/repos/{self.repo}/issues/{issue_number}", kwargs)
+
+
 def _create_github_issues(input_file: str, github_repo: str, github_token: str, dry_run: bool) -> None:
     """Create GitHub issues from JSON file."""
     # Check if input file exists first
@@ -223,36 +358,58 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
         click.echo("DRY RUN: No actual issues will be created")
 
     # Initialize GitHub client only if not doing a dry run
-    repo = None
+    github_client = None
     if not dry_run:
         try:
-            github = Github(github_token)
-            repo = github.get_repo(github_repo)
+            github_client = GitHubClient(github_token, github_repo)
         except Exception as e:
-            raise click.ClickException(f"Failed to connect to GitHub repository: {e}") from e
+            raise click.ClickException(f"Failed to initialize GitHub client: {e}") from e
+
+    # Sort tasks by priority for proper ordering
+    tasks = sorted(data["tasks"], key=lambda x: x.get("priority", 999))
 
     # Track created issues for parent-child relationships
-    created_issues: dict[str, Issue] = {}
+    created_issues: dict[str, dict[str, Any]] = {}
+    total_created = 0
 
     # Create issues for all top-level tasks
-    for task in data["tasks"]:
-        parent_issue = _create_issue_from_task(repo, task, None, dry_run)
+    for task in tasks:
+        parent_issue = _create_issue_from_task(github_client, task, None, dry_run)
         if parent_issue:
             created_issues[task["title"]] = parent_issue
+            total_created += 1
 
-        # Create child issues if they exist
+        # Create child issues if they exist, sorted by priority
         if "children" in task:
-            for child_task in task["children"]:
-                child_issue = _create_issue_from_task(repo, child_task, parent_issue, dry_run)
+            child_tasks = sorted(task["children"], key=lambda x: x.get("priority", 999))
+            child_task_list = []
+
+            for child_task in child_tasks:
+                child_issue = _create_issue_from_task(github_client, child_task, parent_issue, dry_run)
                 if child_issue:
                     created_issues[child_task["title"]] = child_issue
+                    total_created += 1
+                    child_task_list.append(f"- [ ] #{child_issue['number']} {child_task['title']}")
 
-    click.echo(f"Successfully created {len(created_issues)} issues")
+            # Update parent issue with task list of children (sub-issues)
+            if parent_issue and child_task_list and not dry_run:
+                try:
+                    updated_body = parent_issue["body"] + "\n\n**Sub-tasks:**\n" + "\n".join(child_task_list)
+                    if github_client:
+                        github_client.update_issue(parent_issue["number"], body=updated_body)
+                        click.echo(f"  Updated parent issue #{parent_issue['number']} with sub-task list")
+                except Exception as e:  # noqa: BLE001 - GitHub API can raise various exceptions
+                    click.echo(f"  Warning: Failed to update parent issue with sub-tasks: {e}", err=True)
+
+    click.echo(f"Successfully created {total_created} issues")
 
 
 def _create_issue_from_task(
-    repo: Repository | None, task: dict[str, Any], parent_issue: Issue | None, dry_run: bool
-) -> Issue | None:
+    github_client: GitHubClient | None,
+    task: dict[str, Any],
+    parent_issue: dict[str, Any] | None,
+    dry_run: bool
+) -> dict[str, Any] | None:
     """Create a single GitHub issue from a task."""
     title = task["title"]
 
@@ -261,9 +418,13 @@ def _create_issue_from_task(
     if task.get("description"):
         description_lines.extend(task["description"])
 
+    # Add priority information
+    if "priority" in task:
+        description_lines.extend(["", f"**Priority:** {task['priority']}"])
+
     # Add parent reference if this is a child task
     if parent_issue:
-        description_lines.extend(["", f"**Parent Issue:** #{parent_issue.number}"])
+        description_lines.extend(["", f"**Parent Issue:** #{parent_issue['number']}"])
 
     body = "\n".join(description_lines)
 
@@ -274,13 +435,15 @@ def _create_issue_from_task(
     if dry_run:
         click.echo(f"  Body: {body[:100]}...")
         click.echo(f"  Labels: {labels}")
+        if "priority" in task:
+            click.echo(f"  Priority: {task['priority']}")
         return None
 
     try:
-        if repo is None:
-            raise ValueError("Repository connection required for issue creation")
-        issue = repo.create_issue(title=title, body=body, labels=labels)
-        click.echo(f"  Created issue #{issue.number}")
+        if github_client is None:
+            raise ValueError("GitHub client required for issue creation")
+        issue = github_client.create_issue(title=title, body=body, labels=labels)
+        click.echo(f"  Created issue #{issue['number']}")
         return issue
     except Exception as e:  # noqa: BLE001 - GitHub API can raise various exceptions
         click.echo(f"  Failed to create issue: {e}", err=True)
