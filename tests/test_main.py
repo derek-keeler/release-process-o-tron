@@ -400,7 +400,7 @@ def test_create_issues_dry_run() -> None:
 def test_create_issues_missing_required_options() -> None:
     """Test that create-issues fails when required options are missing."""
     runner = CliRunner()
-    
+
     # Test missing --input-file
     result = runner.invoke(main, [
         "--create-issues",
@@ -432,7 +432,7 @@ def test_create_issues_missing_required_options() -> None:
 def test_create_issues_input_file_not_found() -> None:
     """Test that create-issues fails when input file doesn't exist."""
     runner = CliRunner()
-    
+
     result = runner.invoke(main, [
         "--create-issues",
         "--input-file", "nonexistent.json",
@@ -440,6 +440,6 @@ def test_create_issues_input_file_not_found() -> None:
         "--github-token", "fake-token",
         "--dry-run"
     ])
-    
+
     assert result.exit_code != 0
     assert "Input file not found" in result.output
