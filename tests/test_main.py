@@ -218,3 +218,148 @@ def test_missing_output_file() -> None:
 
     assert result.exit_code != 0
     assert "Missing option '--output-file'" in result.output
+
+
+def test_json_validity_all_release_types() -> None:
+    """Test that generated JSON is valid for all supported release types."""
+    runner = CliRunner()
+    release_types = ["dev", "LTS", "experimental", "early-access"]
+
+    for release_type in release_types:
+        with runner.isolated_filesystem():
+            # Test basic release generation
+            result = runner.invoke(main, [
+                "--release-name", f"{release_type.title()} Release",
+                "--release-tag", f"v1.0.0-{release_type.lower()}",
+                "--release-type", release_type,
+                "--release-date", "2025-01-20",
+                "--project-url", "https://github.com/test/test",
+                "--software-name", "Test App",
+                "--software-version", "1.0.0",
+                "--output-file", f"{release_type}_release.json"
+            ])
+
+            assert result.exit_code == 0, f"CLI failed for release type: {release_type}"
+
+            # Validate JSON is syntactically correct
+            json_file = Path(f"{release_type}_release.json")
+            assert json_file.exists(), f"JSON file not created for release type: {release_type}"
+
+            with json_file.open("r", encoding="utf-8") as f:
+                content = f.read()
+                assert content.strip(), f"JSON file is empty for release type: {release_type}"
+
+                # Validate JSON can be parsed without errors
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError as e:
+                    raise AssertionError(f"Invalid JSON generated for release type {release_type}: {e}") from e
+
+                # Validate JSON can be re-serialized (round-trip test)
+                try:
+                    re_serialized = json.dumps(data, indent=2)
+                    re_parsed = json.loads(re_serialized)
+                    assert isinstance(re_parsed, dict), f"JSON structure invalid for release type: {release_type}"
+                except (TypeError, ValueError) as e:
+                    raise AssertionError(f"JSON round-trip failed for release type {release_type}: {e}") from e
+
+
+def test_json_validity_with_comments() -> None:
+    """Test that generated JSON is valid when comments are included."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        # Test with multiple comments
+        result = runner.invoke(main, [
+            "--release-name", "Commented Release",
+            "--release-tag", "v1.0.0",
+            "--release-type", "dev",
+            "--release-date", "2025-01-20",
+            "--project-url", "https://github.com/test/test",
+            "--software-name", "Test App",
+            "--software-version", "1.0.0",
+            "--comment", "First comment with special chars: áéíóú",
+            "--comment", "Second comment with quotes and \"escapes\"",
+            "--comment", "Third comment with newlines\nand\ttabs",
+            "--output-file", "commented_release.json"
+        ])
+
+        assert result.exit_code == 0
+
+        # Validate JSON with complex comment content
+        with Path("commented_release.json").open("r", encoding="utf-8") as f:
+            content = f.read()
+
+            # Validate JSON parsing
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise AssertionError(f"Invalid JSON generated with comments: {e}") from e
+
+            # Validate comments are properly escaped and included
+            assert "comments" in data["release"]
+            assert len(data["release"]["comments"]) == 3
+            assert "áéíóú" in data["release"]["comments"][0]
+            assert "\"escapes\"" in data["release"]["comments"][1]
+            assert "\n" in data["release"]["comments"][2]
+
+
+def test_json_structure_consistency() -> None:
+    """Test that JSON structure is consistent and contains required fields."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(main, [
+            "--release-name", "Structure Test",
+            "--release-tag", "v1.0.0",
+            "--release-type", "LTS",
+            "--release-date", "2025-01-20",
+            "--project-url", "https://github.com/test/test",
+            "--software-name", "Test App",
+            "--software-version", "1.0.0",
+            "--output-file", "structure_test.json"
+        ])
+
+        assert result.exit_code == 0
+
+        with Path("structure_test.json").open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+            # Validate top-level structure
+            assert isinstance(data, dict), "Root JSON element must be an object"
+            assert "release" in data, "JSON must contain 'release' section"
+            assert "tasks" in data, "JSON must contain 'tasks' section"
+
+            # Validate release section
+            release = data["release"]
+            required_release_fields = [
+                "name", "tag", "type", "date", "project_url", "software_name", "software_version"
+            ]
+            for field in required_release_fields:
+                assert field in release, f"Release section missing required field: {field}"
+                assert isinstance(release[field], str), f"Release field '{field}' must be a string"
+
+            # Validate tasks section
+            tasks = data["tasks"]
+            assert isinstance(tasks, list), "Tasks must be a list"
+            assert len(tasks) > 0, "Must have at least one task"
+
+            # Validate each task structure
+            for i, task in enumerate(tasks):
+                assert isinstance(task, dict), f"Task {i} must be an object"
+                required_task_fields = ["title", "description", "project", "tags", "category"]
+                for field in required_task_fields:
+                    assert field in task, f"Task {i} missing required field: {field}"
+
+                # Validate field types
+                assert isinstance(task["title"], str), f"Task {i} title must be a string"
+                assert isinstance(task["description"], list), f"Task {i} description must be a list"
+                assert isinstance(task["project"], str), f"Task {i} project must be a string"
+                assert isinstance(task["tags"], list), f"Task {i} tags must be a list"
+                assert isinstance(task["category"], str), f"Task {i} category must be a string"
+
+                # Validate children structure if present
+                if "children" in task:
+                    assert isinstance(task["children"], list), f"Task {i} children must be a list"
+                    for j, child in enumerate(task["children"]):
+                        assert isinstance(child, dict), f"Task {i} child {j} must be an object"
+                        for field in required_task_fields:
+                            assert field in child, f"Task {i} child {j} missing required field: {field}"
