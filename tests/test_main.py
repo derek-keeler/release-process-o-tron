@@ -496,7 +496,7 @@ def test_create_issues_with_priority_ordering() -> None:
         result = runner.invoke(main, [
             "--release-name", "Priority Order Test",
             "--release-tag", "v1.0.0",
-            "--release-type", "LTS", 
+            "--release-type", "LTS",
             "--release-date", "2025-01-20",
             "--project-url", "https://github.com/test/test",
             "--software-name", "Test App",
@@ -515,17 +515,17 @@ def test_create_issues_with_priority_ordering() -> None:
         ])
 
         assert result.exit_code == 0
-        
+
         # Verify that priority information is shown
         assert "Priority: 1" in result.output
         assert "Priority: 2" in result.output
-        
+
         # The output should contain tasks in priority order
         lines = result.output.split('\n')
         creation_lines = [line for line in lines if line.startswith("Creating issue:")]
-        
+
         # Check that we have tasks being created
         assert len(creation_lines) > 1, "Should have multiple tasks being created"
-        
+
         # First task should be Pre-Release Code Quality (priority 1)
         assert "Pre-Release Code Quality" in creation_lines[0]
