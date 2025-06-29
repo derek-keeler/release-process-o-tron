@@ -6,19 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import click
+from github import Github
+from github.Issue import Issue
+from github.Repository import Repository
 from jinja2 import Environment, FileSystemLoader
-
-try:
-    from github import Github  # type: ignore[import-not-found]
-    from github.Issue import Issue  # type: ignore[import-not-found]
-    from github.Repository import Repository  # type: ignore[import-not-found]
-    GITHUB_AVAILABLE = True
-except ImportError:
-    GITHUB_AVAILABLE = False
-    # Type aliases for mypy when PyGithub is not available
-    Github = Any
-    Repository = Any
-    Issue = Any
 
 
 @click.command()
@@ -223,14 +214,7 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
     if not input_path.exists():
         raise click.ClickException(f"Input file not found: {input_file}")
 
-    # For actual issue creation (not dry run), check if PyGithub is available
-    if not dry_run and not GITHUB_AVAILABLE:
-        raise click.ClickException(
-            "PyGithub is not installed. Install with: pip install 'release-process-o-tron[github]'"
-        )
-
     # Load JSON data
-
     with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
