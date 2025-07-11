@@ -6,13 +6,14 @@ requires = ["setuptools>=68.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Release Process-o-tron"
+name = "release-process-o-tron"
+friendly-name = "Release Process-o-tron"
 version = "0.1.0"
 description = "Generate hierarchical work items for your upcoming release, and see the state of the release throughout its duration."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Derek Keeler" }
+    { name = "Derek Keeler", email = "34773432+derek-keeler@users.noreply.github.com" }
 ]
 keywords = ["release", "process", "workflow", "cli", "project-management"]
 classifiers = [

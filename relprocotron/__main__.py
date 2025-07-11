@@ -28,7 +28,7 @@ def _get_value_from_pyproject(valkey: str) -> str:
 @click.command()
 @click.help_option('-h', '--help')
 @click.version_option(_get_value_from_pyproject("version"), "-v", "--version",
-                      prog_name=_get_value_from_pyproject("name"),
+                      prog_name=_get_value_from_pyproject("friendly-name"),
                       message="%(prog)s v%(version)s")  # Dynamic version from pyproject.toml
 @click.option(
     '-n', '--release-name',
@@ -122,7 +122,8 @@ def main(
     comment_list: list[str] = list(comment)
 
     # Log all received parameters for verification
-    logging.info(f"{_get_value_from_pyproject('name')} v{_get_value_from_pyproject('version')} - Parameter Verification")
+    logging.info(f"{_get_value_from_pyproject('friendly-name')} v{_get_value_from_pyproject('version')} - "
+                 "Parameter Verification")
     logging.info("=" * 50)
     logging.info(f"Release Name: {release_name}")
     logging.info(f"Release Tag: {release_tag}")
