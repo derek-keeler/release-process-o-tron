@@ -90,6 +90,12 @@ def _get_value_from_pyproject(valkey: str) -> str:
     required=True,
     help='Path to output JSON file for release activities'
 )
+@click.option(
+    '-V', '--verbose',
+    is_flag=True,
+    default=False,
+    help='Enable verbose (DEBUG) logging'
+)
 def main(
     release_name: str,
     release_tag: str,
@@ -100,29 +106,34 @@ def main(
     software_name: str,
     software_version: str,
     comment: tuple[str, ...],
-    output_file: str
+    output_file: str,
+    verbose: bool
 ) -> None:
     """Release Process-O-Tron CLI tool.
 
     Generate hierarchical work items for your upcoming release,
     and see the state of the release throughout its duration.
     """
+    if verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug("Verbose mode enabled: log level set to DEBUG.")
+
     # Convert tuple to list for consistency with type hint
     comment_list: list[str] = list(comment)
 
-    # Echo all received parameters for verification
-    click.echo("Release Process-O-Tron - Parameter Verification")
-    click.echo("=" * 50)
-    click.echo(f"Release Name: {release_name}")
-    click.echo(f"Release Tag: {release_tag}")
-    click.echo(f"Release Type: {release_type}")
-    click.echo(f"Release Date: {release_date}")
-    click.echo(f"Project URL: {project_url}")
-    click.echo(f"Dry Run: {dry_run}")
-    click.echo(f"Software Name: {software_name}")
-    click.echo(f"Software Version: {software_version}")
-    click.echo(f"Comments: {comment_list}")
-    click.echo(f"Output File: {output_file}")
+    # Log all received parameters for verification
+    logging.info(f"{_get_value_from_pyproject('name')} v{_get_value_from_pyproject('version')} - Parameter Verification")
+    logging.info("=" * 50)
+    logging.info(f"Release Name: {release_name}")
+    logging.info(f"Release Tag: {release_tag}")
+    logging.info(f"Release Type: {release_type}")
+    logging.info(f"Release Date: {release_date}")
+    logging.info(f"Project URL: {project_url}")
+    logging.info(f"Dry Run: {dry_run}")
+    logging.info(f"Software Name: {software_name}")
+    logging.info(f"Software Version: {software_version}")
+    logging.info(f"Comments: {comment_list}")
+    logging.info(f"Output File: {output_file}")
 
     # Generate release activities JSON
     _generate_release_activities(
