@@ -1,71 +1,91 @@
 #!/usr/bin/env python3
 """CLI entrypoint for Release Process-O-Tron."""
-
 import json
+import logging
+import tomllib
 from pathlib import Path
 
 import click
 from jinja2 import Environment, FileSystemLoader
 
+logging.basicConfig(level=logging.INFO)
+
+
+def _get_value_from_pyproject(valkey: str) -> str:
+    """Extract value from pyproject.toml in the project root using tomllib."""
+    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+    try:
+        with pyproject_path.open("rb") as f:
+            data = tomllib.load(f)
+        # Try PEP 621-compliant location first
+        if "project" in data and valkey in data["project"]:
+            return data["project"][valkey]
+    except Exception:
+        logging.getLogger(__name__).error("Failed to read or parse pyproject.toml for version.")
+        raise
+    return "unknown"
 
 @click.command()
+@click.help_option('-h', '--help')
+@click.version_option(_get_value_from_pyproject("version"), "-v", "--version",
+                      prog_name=_get_value_from_pyproject("name"),
+                      message="%(prog)s v%(version)s")  # Dynamic version from pyproject.toml
 @click.option(
-    '--release-name',
+    '-n', '--release-name',
     type=str,
     required=True,
     help='Name of the release'
 )
 @click.option(
-    '--release-tag',
+    '-t', '--release-tag',
     type=str,
     required=True,
     help='Git tag for the release'
 )
 @click.option(
-    '--release-type',
+    '-y', '--release-type',
     type=click.Choice(['LTS', 'dev', 'experimental', 'early-access'], case_sensitive=True),
     required=True,
     help='Type of release (LTS, dev, experimental, early-access)'
 )
 @click.option(
-    '--release-date',
+    '-d', '--release-date',
     type=str,
     required=True,
     help='Release date in YYYY-MM-DD format'
 )
 @click.option(
-    '--project-url',
+    '-u', '--project-url',
     type=str,
     required=True,
     help='URL of the project repository'
 )
 @click.option(
-    '--dry-run',
-    type=bool,
+    '-r', '--dry-run',
     is_flag=True,
     default=False,
     help='Perform a dry run without making actual changes'
 )
 @click.option(
-    '--software-name',
+    '-s', '--software-name',
     type=str,
     required=True,
     help='Name of the software being released'
 )
 @click.option(
-    '--software-version',
+    '-S', '--software-version',
     type=str,
     required=True,
     help='Version of the software being released'
 )
 @click.option(
-    '--comment',
+    '-c', '--comment',
     type=str,
     multiple=True,
     help='Additional comments about the release (can be used multiple times)'
 )
 @click.option(
-    '--output-file',
+    '-o', '--output-file',
     type=str,
     required=True,
     help='Path to output JSON file for release activities'
@@ -160,6 +180,7 @@ def _generate_release_activities(
 
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(parsed_data, f, indent=2, ensure_ascii=False)
+
 
 
 if __name__ == '__main__':
