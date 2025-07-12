@@ -2,7 +2,9 @@
 """CLI entrypoint for Release Process-O-Tron."""
 
 import json
+import logging
 import time
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -41,7 +43,8 @@ def _get_value_from_pyproject(valkey: str) -> str:
 @click.option("-t", "--release-tag", type=str, required=True, help="Git tag for the release")
 @click.option(
     "-y",
-    "--release-type", type=click.Choice(["LTS", "dev", "experimental", "early-access"], case_sensitive=True),
+    "--release-type",
+    type=click.Choice(["LTS", "dev", "experimental", "early-access"], case_sensitive=True),
     required=True,
     help="Type of release (LTS, dev, experimental, early-access)",
 )
@@ -55,30 +58,18 @@ def _get_value_from_pyproject(valkey: str) -> str:
     "--comment",
     type=str,
     multiple=True,
-    help='Additional comments about the release (can be used multiple times)'
+    help="Additional comments about the release (can be used multiple times)",
 )
 @click.option(
-    '--create-issues',
-    type=bool,
-    is_flag=True,
-    default=False,
-    help='Create GitHub issues from existing JSON file'
+    "--create-issues", type=bool, is_flag=True, default=False, help="Create GitHub issues from existing JSON file"
 )
 @click.option(
-    '--input-file',
-    type=str,
-    help='Path to input JSON file for issue creation (required when --create-issues is used)'
+    "--input-file", type=str, help="Path to input JSON file for issue creation (required when --create-issues is used)"
 )
 @click.option(
-    '--github-repo',
-    type=str,
-    help='GitHub repository in format owner/repo (required when --create-issues is used)'
+    "--github-repo", type=str, help="GitHub repository in format owner/repo (required when --create-issues is used)"
 )
-@click.option(
-    '--github-token',
-    type=str,
-    help='GitHub personal access token (required when --create-issues is used)'
-)
+@click.option("--github-token", type=str, help="GitHub personal access token (required when --create-issues is used)")
 @click.option("-o", "--output-file", type=str, required=True, help="Path to output JSON file for release activities")
 @click.option("-V", "--verbose", is_flag=True, default=False, help="Enable verbose (DEBUG) logging")
 def main(
@@ -91,12 +82,11 @@ def main(
     software_name: str | None,
     software_version: str | None,
     comment: tuple[str, ...],
-    output_file: str | None,
+    output_file: str,
     create_issues: bool,
     input_file: str | None,
     github_repo: str | None,
-    github_token: str | None
-    output_file: str,
+    github_token: str | None,
     verbose: bool,
 ) -> None:
     """Release Process-O-Tron CLI tool.
@@ -119,14 +109,26 @@ def main(
 
     # For JSON generation mode, check required parameters
     required_params = [
-        release_name, release_tag, release_type, release_date,
-        project_url, software_name, software_version, output_file
+        release_name,
+        release_tag,
+        release_type,
+        release_date,
+        project_url,
+        software_name,
+        software_version,
+        output_file,
     ]
     if not all(required_params):
         click.echo("Error: Missing required options for JSON generation", err=True)
         required_options = [
-            "--release-name", "--release-tag", "--release-type", "--release-date",
-            "--project-url", "--software-name", "--software-version", "--output-file"
+            "--release-name",
+            "--release-tag",
+            "--release-type",
+            "--release-date",
+            "--project-url",
+            "--software-name",
+            "--software-version",
+            "--output-file",
         ]
         click.echo(f"Required: {', '.join(required_options)}")
         raise click.ClickException("Missing required options for JSON generation")
@@ -222,11 +224,13 @@ class GitHubClient:
         self.repo = repo
         self.base_url = "https://api.github.com"
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "release-process-o-tron"
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"token {token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "release-process-o-tron",
+            }
+        )
 
     def _make_request(
         self,
@@ -234,7 +238,7 @@ class GitHubClient:
         endpoint: str,
         data: dict[str, Any] | None = None,
         max_retries: int = 3,
-        base_delay: float = 1.0
+        base_delay: float = 1.0,
     ) -> dict[str, Any]:
         """Make HTTP request with retry logic and exponential backoff.
 
@@ -266,7 +270,7 @@ class GitHubClient:
 
                 # Handle rate limiting with backoff
                 if response.status_code == 429:
-                    retry_after = int(response.headers.get("Retry-After", base_delay * (2 ** attempt)))
+                    retry_after = int(response.headers.get("Retry-After", base_delay * (2**attempt)))
                     if attempt < max_retries:
                         msg = f"Rate limited, waiting {retry_after} seconds before retry {attempt + 1}/{max_retries}"
                         click.echo(msg)
@@ -283,7 +287,7 @@ class GitHubClient:
 
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     msg = f"Request failed, retrying in {delay} seconds (attempt {attempt + 1}/{max_retries}): {e}"
                     click.echo(msg)
                     time.sleep(delay)
@@ -291,7 +295,7 @@ class GitHubClient:
                 raise
             except requests.exceptions.RequestException:
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     click.echo(f"Request failed, retrying in {delay} seconds (attempt {attempt + 1}/{max_retries})")
                     time.sleep(delay)
                     continue
@@ -311,10 +315,7 @@ class GitHubClient:
         Returns:
             Created issue data
         """
-        data: dict[str, Any] = {
-            "title": title,
-            "body": body
-        }
+        data: dict[str, Any] = {"title": title, "body": body}
         if labels:
             data["labels"] = labels
 
@@ -407,10 +408,7 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
 
 
 def _create_issue_from_task(
-    github_client: GitHubClient | None,
-    task: dict[str, Any],
-    parent_issue: dict[str, Any] | None,
-    dry_run: bool
+    github_client: GitHubClient | None, task: dict[str, Any], parent_issue: dict[str, Any] | None, dry_run: bool
 ) -> dict[str, Any] | None:
     """Create a single GitHub issue from a task."""
     title = task["title"]
@@ -452,5 +450,5 @@ def _create_issue_from_task(
         return None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
