@@ -355,34 +355,34 @@ class GitHubClient:
 
 def _collect_all_tags(data: dict[str, Any]) -> set[str]:
     """Collect all unique tags from tasks and their children.
-    
+
     Args:
         data: JSON data containing tasks
-        
+
     Returns:
         Set of all unique tag names
     """
     tags = set()
-    
+
     # Process all tasks
     for task in data.get("tasks", []):
         # Add tags from main task
         tags.update(task.get("tags", []))
-        
+
         # Add tags from child tasks
         for child in task.get("children", []):
             tags.update(child.get("tags", []))
-    
+
     return tags
 
 
 def _validate_repository_labels(github_client: GitHubClient, required_tags: set[str]) -> None:
     """Validate that all required tags exist as labels in the GitHub repository.
-    
+
     Args:
         github_client: GitHub client instance
         required_tags: Set of tag names that must exist as labels
-        
+
     Raises:
         click.ClickException: If any required tags don't exist as labels
     """
@@ -390,14 +390,14 @@ def _validate_repository_labels(github_client: GitHubClient, required_tags: set[
         # Get all labels from the repository
         labels = github_client.list_labels()
         existing_label_names = {label["name"] for label in labels}
-        
+
         # Find tags that don't exist as labels
         missing_tags = required_tags - existing_label_names
-        
+
         if missing_tags:
             missing_tags_list = sorted(missing_tags)
             missing_tags_str = ", ".join(missing_tags_list)
-            
+
             error_message = f"The following tags do not exist as labels in the repository: {missing_tags_str}\n\n"
             error_message += "You can create missing labels using one of these methods:\n\n"
             error_message += "Using GitHub CLI:\n"
@@ -406,9 +406,9 @@ def _validate_repository_labels(github_client: GitHubClient, required_tags: set[
             error_message += "\nUsing GitHub web interface:\n"
             error_message += f"  Visit https://github.com/{github_client.repo}/labels and click 'New label'\n\n"
             error_message += "Alternatively, remove these tags from your JSON template file."
-            
+
             raise click.ClickException(error_message)
-            
+
     except Exception as e:
         if isinstance(e, click.ClickException):
             raise
@@ -440,10 +440,10 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
 
     # Collect all tags from the JSON data
     all_tags = _collect_all_tags(data)
-    
+
     if all_tags:
         click.echo(f"Found {len(all_tags)} unique tags in JSON: {', '.join(sorted(all_tags))}")
-        
+
         # Validate that all tags exist as labels in the repository (unless dry run)
         if not dry_run and github_client:
             click.echo("Validating that all tags exist as labels in the repository...")
