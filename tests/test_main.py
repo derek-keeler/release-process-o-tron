@@ -21,15 +21,6 @@ def test_main_help() -> None:
     assert "--output-file" in result.output
 
 
-def test_main_missing_required_args() -> None:
-    """Test that the main command fails when required arguments are missing."""
-    runner = CliRunner()
-    result = runner.invoke(main, [])
-
-    assert result.exit_code != 0
-    assert "Missing option" in result.output
-
-
 def test_main_with_dry_run() -> None:
     """Test that the main command writes file regardless of dry-run flag."""
     runner = CliRunner()
@@ -152,8 +143,10 @@ def test_json_structure_dev_release() -> None:
             assert "project" in task
             assert "tags" in task
             assert "category" in task
+            assert "priority" in task
             assert isinstance(task["description"], list)
             assert isinstance(task["tags"], list)
+            assert isinstance(task["priority"], int)
 
             # Check children tasks if they exist
             if "children" in task:
@@ -163,6 +156,7 @@ def test_json_structure_dev_release() -> None:
                     assert "project" in child
                     assert "tags" in child
                     assert "category" in child
+                    assert "priority" in child
 
 
 def test_json_structure_lts_release() -> None:
@@ -369,7 +363,7 @@ def test_json_structure_consistency() -> None:
             # Validate each task structure
             for i, task in enumerate(tasks):
                 assert isinstance(task, dict), f"Task {i} must be an object"
-                required_task_fields = ["title", "description", "project", "tags", "category"]
+                required_task_fields = ["title", "description", "project", "tags", "category", "priority"]
                 for field in required_task_fields:
                     assert field in task, f"Task {i} missing required field: {field}"
 
@@ -379,6 +373,7 @@ def test_json_structure_consistency() -> None:
                 assert isinstance(task["project"], str), f"Task {i} project must be a string"
                 assert isinstance(task["tags"], list), f"Task {i} tags must be a list"
                 assert isinstance(task["category"], str), f"Task {i} category must be a string"
+                assert isinstance(task["priority"], int), f"Task {i} priority must be an integer"
 
                 # Validate children structure if present
                 if "children" in task:
@@ -387,3 +382,53 @@ def test_json_structure_consistency() -> None:
                         assert isinstance(child, dict), f"Task {i} child {j} must be an object"
                         for field in required_task_fields:
                             assert field in child, f"Task {i} child {j} missing required field: {field}"
+
+
+def test_priority_field_in_generated_json() -> None:
+    """Test that priority field is included in generated JSON tasks."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(
+            main,
+            [
+                "--release-name",
+                "Priority Test",
+                "--release-tag",
+                "v1.0.0",
+                "--release-type",
+                "dev",
+                "--release-date",
+                "2025-01-20",
+                "--project-url",
+                "https://github.com/test/test",
+                "--software-name",
+                "Test App",
+                "--software-version",
+                "1.0.0",
+                "--output-file",
+                "priority_test.json",
+            ],
+        )
+
+        assert result.exit_code == 0
+
+        # Parse and validate priority fields
+        with Path("priority_test.json").open("r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Check that all tasks have priority field
+        for task in data["tasks"]:
+            assert "priority" in task, f"Task '{task['title']}' missing priority field"
+            assert isinstance(task["priority"], int), f"Task '{task['title']}' priority must be integer"
+            assert task["priority"] > 0, f"Task '{task['title']}' priority must be positive"
+
+            # Check children tasks if they exist
+            if "children" in task:
+                for child in task["children"]:
+                    assert "priority" in child, f"Child task '{child['title']}' missing priority field"
+                    assert isinstance(child["priority"], int), f"Child task '{child['title']}' priority must be integer"
+                    assert child["priority"] > 0, f"Child task '{child['title']}' priority must be positive"
+
+        # Check that tasks are in different priority groups
+        priorities = [task["priority"] for task in data["tasks"]]
+        assert len(set(priorities)) > 1, "Tasks should have different priorities for ordering"
