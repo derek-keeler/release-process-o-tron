@@ -39,20 +39,19 @@ def _get_value_from_pyproject(valkey: str) -> str:
     prog_name=_get_value_from_pyproject("name"),
     message="%(prog)s v%(version)s",
 )  # Dynamic version from pyproject.toml
-@click.option("-n", "--release-name", type=str, required=True, help="Name of the release")
-@click.option("-t", "--release-tag", type=str, required=True, help="Git tag for the release")
+@click.option("-n", "--release-name", type=str, help="Name of the release")
+@click.option("-t", "--release-tag", type=str, help="Git tag for the release")
 @click.option(
     "-y",
     "--release-type",
     type=click.Choice(["LTS", "dev", "experimental", "early-access"], case_sensitive=True),
-    required=True,
     help="Type of release (LTS, dev, experimental, early-access)",
 )
-@click.option("-d", "--release-date", type=str, required=True, help="Release date in YYYY-MM-DD format")
-@click.option("-u", "--project-url", type=str, required=True, help="URL of the project repository")
+@click.option("-d", "--release-date", type=str, help="Release date in YYYY-MM-DD format")
+@click.option("-u", "--project-url", type=str, help="URL of the project repository")
 @click.option("-r", "--dry-run", is_flag=True, default=False, help="Perform a dry run without making actual changes")
-@click.option("-s", "--software-name", type=str, required=True, help="Name of the software being released")
-@click.option("-S", "--software-version", type=str, required=True, help="Version of the software being released")
+@click.option("-s", "--software-name", type=str, help="Name of the software being released")
+@click.option("-S", "--software-version", type=str, help="Version of the software being released")
 @click.option(
     "-c",
     "--comment",
@@ -70,7 +69,7 @@ def _get_value_from_pyproject(valkey: str) -> str:
     "--github-repo", type=str, help="GitHub repository in format owner/repo (required when --create-issues is used)"
 )
 @click.option("--github-token", type=str, help="GitHub personal access token (required when --create-issues is used)")
-@click.option("-o", "--output-file", type=str, required=True, help="Path to output JSON file for release activities")
+@click.option("-o", "--output-file", type=str, help="Path to output JSON file for release activities")
 @click.option("-V", "--verbose", is_flag=True, default=False, help="Enable verbose (DEBUG) logging")
 def main(
     release_name: str | None,
