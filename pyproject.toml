@@ -12,7 +12,7 @@ description = "Generate hierarchical work items for your upcoming release, and s
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-    { name = "Derek Keeler" }
+    { name = "Derek Keeler", email = "34773432+derek-keeler@users.noreply.github.com" }
 ]
 keywords = ["release", "process", "workflow", "cli", "project-management"]
 classifiers = [
