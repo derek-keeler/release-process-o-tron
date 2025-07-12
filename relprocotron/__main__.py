@@ -344,6 +344,76 @@ class GitHubClient:
         """
         return self._make_request("PATCH", f"/repos/{self.repo}/issues/{issue_number}", kwargs)
 
+    def list_labels(self) -> list[dict[str, Any]]:
+        """List repository labels.
+
+        Returns:
+            List of label data dictionaries
+        """
+        return self._make_request("GET", f"/repos/{self.repo}/labels")
+
+
+def _collect_all_tags(data: dict[str, Any]) -> set[str]:
+    """Collect all unique tags from tasks and their children.
+    
+    Args:
+        data: JSON data containing tasks
+        
+    Returns:
+        Set of all unique tag names
+    """
+    tags = set()
+    
+    # Process all tasks
+    for task in data.get("tasks", []):
+        # Add tags from main task
+        tags.update(task.get("tags", []))
+        
+        # Add tags from child tasks
+        for child in task.get("children", []):
+            tags.update(child.get("tags", []))
+    
+    return tags
+
+
+def _validate_repository_labels(github_client: GitHubClient, required_tags: set[str]) -> None:
+    """Validate that all required tags exist as labels in the GitHub repository.
+    
+    Args:
+        github_client: GitHub client instance
+        required_tags: Set of tag names that must exist as labels
+        
+    Raises:
+        click.ClickException: If any required tags don't exist as labels
+    """
+    try:
+        # Get all labels from the repository
+        labels = github_client.list_labels()
+        existing_label_names = {label["name"] for label in labels}
+        
+        # Find tags that don't exist as labels
+        missing_tags = required_tags - existing_label_names
+        
+        if missing_tags:
+            missing_tags_list = sorted(missing_tags)
+            missing_tags_str = ", ".join(missing_tags_list)
+            
+            error_message = f"The following tags do not exist as labels in the repository: {missing_tags_str}\n\n"
+            error_message += "You can create missing labels using one of these methods:\n\n"
+            error_message += "Using GitHub CLI:\n"
+            for tag in missing_tags_list:
+                error_message += f"  gh label create \"{tag}\" --description \"Label for {tag} related tasks\"\n"
+            error_message += "\nUsing GitHub web interface:\n"
+            error_message += f"  Visit https://github.com/{github_client.repo}/labels and click 'New label'\n\n"
+            error_message += "Alternatively, remove these tags from your JSON template file."
+            
+            raise click.ClickException(error_message)
+            
+    except Exception as e:
+        if isinstance(e, click.ClickException):
+            raise
+        raise click.ClickException(f"Failed to validate repository labels: {e}") from e
+
 
 def _create_github_issues(input_file: str, github_repo: str, github_token: str, dry_run: bool) -> None:
     """Create GitHub issues from JSON file."""
@@ -367,6 +437,20 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
             github_client = GitHubClient(github_token, github_repo)
         except Exception as e:
             raise click.ClickException(f"Failed to initialize GitHub client: {e}") from e
+
+    # Collect all tags from the JSON data
+    all_tags = _collect_all_tags(data)
+    
+    if all_tags:
+        click.echo(f"Found {len(all_tags)} unique tags in JSON: {', '.join(sorted(all_tags))}")
+        
+        # Validate that all tags exist as labels in the repository (unless dry run)
+        if not dry_run and github_client:
+            click.echo("Validating that all tags exist as labels in the repository...")
+            _validate_repository_labels(github_client, all_tags)
+            click.echo("✓ All tags validated successfully")
+    else:
+        click.echo("No tags found in JSON data")
 
     # Sort tasks by priority for proper ordering
     tasks = sorted(data["tasks"], key=lambda x: x.get("priority", 999))
