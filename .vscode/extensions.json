@@ -3,7 +3,7 @@
         "ms-python.python",
         "charliermarsh.ruff",
         "ms-python.mypy-type-checker",
-        "wholroyd.jinja",
+        "samuelcolvin.jinjahtml",
         "davidanson.vscode-markdownlint"
     ]
 }
