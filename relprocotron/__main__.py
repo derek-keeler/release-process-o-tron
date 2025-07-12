@@ -98,6 +98,16 @@ def main(
         logging.getLogger().setLevel(logging.DEBUG)
         logging.debug("Verbose mode enabled: log level set to DEBUG.")
 
+    # Obtain the github token. The token given on the command line could be a token itself,
+    # or it could be a file path to a file that only contains the token.
+    if github_token and Path(github_token).is_file():
+        try:
+            github_token = Path(github_token).read_text(encoding="utf-8").strip()
+            logging.debug(f"Using GitHub token from file: {github_token}")
+        except Exception as e:
+            click.echo(f"Error reading GitHub token file: {e}", err=True)
+            raise
+
     # Handle GitHub issue creation mode
     if create_issues:
         if not input_file or not github_repo or not github_token:
@@ -402,7 +412,7 @@ def _validate_repository_labels(github_client: GitHubClient, required_tags: set[
             error_message += "You can create missing labels using one of these methods:\n\n"
             error_message += "Using GitHub CLI:\n"
             for tag in missing_tags_list:
-                error_message += f"  gh label create \"{tag}\" --description \"Label for {tag} related tasks\"\n"
+                error_message += f'  gh label create "{tag}" --description "Label for {tag} related tasks"\n'
             error_message += "\nUsing GitHub web interface:\n"
             error_message += f"  Visit https://github.com/{github_client.repo}/labels and click 'New label'\n\n"
             error_message += "Alternatively, remove these tags from your JSON template file."

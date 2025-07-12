@@ -447,20 +447,20 @@ def test_collect_all_tags() -> None:
                 "children": [
                     {"title": "Child 1", "tags": ["tag3", "tag1"]},  # tag1 is duplicate
                     {"title": "Child 2", "tags": ["tag4"]},
-                ]
+                ],
             },
             {
                 "title": "Task 2",
                 "tags": ["tag2", "tag5"],  # tag2 is duplicate
                 "children": [
                     {"title": "Child 3", "tags": []},  # empty tags
-                ]
+                ],
             },
             {
                 "title": "Task 3",
                 "tags": ["tag6"],
                 # no children
-            }
+            },
         ]
     }
 
@@ -573,13 +573,12 @@ def test_create_issues_with_tag_validation() -> None:
                             "category": "Testing",
                             "priority": 1,
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         }
 
-        with open("test_issues.json", "w") as f:
-            json.dump(test_data, f)
+        Path("test_issues.json").write_text(json.dumps(test_data), encoding="utf-8")
 
         # Mock the GitHub client methods
         with patch("relprocotron.__main__.GitHubClient") as mock_github_client_class:
@@ -602,19 +601,30 @@ def test_create_issues_with_tag_validation() -> None:
                 main,
                 [
                     "--create-issues",
-                    "--input-file", "test_issues.json",
-                    "--github-repo", "test/repo",
-                    "--github-token", "fake_token",
+                    "--input-file",
+                    "test_issues.json",
+                    "--github-repo",
+                    "test/repo",
+                    "--github-token",
+                    "fake_token",
                     # Add minimal required options that won't be used in create-issues mode
-                    "--release-name", "dummy",
-                    "--release-tag", "dummy",
-                    "--release-type", "dev",
-                    "--release-date", "2025-01-01",
-                    "--project-url", "https://github.com/test/repo",
-                    "--software-name", "dummy",
-                    "--software-version", "1.0.0",
-                    "--output-file", "dummy.json",
-                ]
+                    "--release-name",
+                    "dummy",
+                    "--release-tag",
+                    "dummy",
+                    "--release-type",
+                    "dev",
+                    "--release-date",
+                    "2025-01-01",
+                    "--project-url",
+                    "https://github.com/test/repo",
+                    "--software-name",
+                    "dummy",
+                    "--software-version",
+                    "1.0.0",
+                    "--output-file",
+                    "dummy.json",
+                ],
             )
 
             # Should succeed
@@ -644,11 +654,10 @@ def test_create_issues_missing_tags_validation() -> None:
                     "category": "Testing",
                     "priority": 1,
                 }
-            ]
+            ],
         }
 
-        with open("test_issues.json", "w") as f:
-            json.dump(test_data, f)
+        Path("test_issues.json").write_text(json.dumps(test_data), encoding="utf-8")
 
         # Mock the GitHub client methods
         with patch("relprocotron.__main__.GitHubClient") as mock_github_client_class:
@@ -667,19 +676,30 @@ def test_create_issues_missing_tags_validation() -> None:
                 main,
                 [
                     "--create-issues",
-                    "--input-file", "test_issues.json",
-                    "--github-repo", "test/repo",
-                    "--github-token", "fake_token",
+                    "--input-file",
+                    "test_issues.json",
+                    "--github-repo",
+                    "test/repo",
+                    "--github-token",
+                    "fake_token",
                     # Add minimal required options that won't be used in create-issues mode
-                    "--release-name", "dummy",
-                    "--release-tag", "dummy",
-                    "--release-type", "dev",
-                    "--release-date", "2025-01-01",
-                    "--project-url", "https://github.com/test/repo",
-                    "--software-name", "dummy",
-                    "--software-version", "1.0.0",
-                    "--output-file", "dummy.json",
-                ]
+                    "--release-name",
+                    "dummy",
+                    "--release-tag",
+                    "dummy",
+                    "--release-type",
+                    "dev",
+                    "--release-date",
+                    "2025-01-01",
+                    "--project-url",
+                    "https://github.com/test/repo",
+                    "--software-name",
+                    "dummy",
+                    "--software-version",
+                    "1.0.0",
+                    "--output-file",
+                    "dummy.json",
+                ],
             )
 
             # Should fail due to missing tags
@@ -712,31 +732,41 @@ def test_create_issues_dry_run_skips_validation() -> None:
                     "category": "Testing",
                     "priority": 1,
                 }
-            ]
+            ],
         }
 
-        with open("test_issues.json", "w") as f:
-            json.dump(test_data, f)
+        Path("test_issues.json").write_text(json.dumps(test_data), encoding="utf-8")
 
         # Test dry run mode
         result = runner.invoke(
             main,
             [
                 "--create-issues",
-                "--input-file", "test_issues.json",
-                "--github-repo", "test/repo",
-                "--github-token", "fake_token",
+                "--input-file",
+                "test_issues.json",
+                "--github-repo",
+                "test/repo",
+                "--github-token",
+                "fake_token",
                 "--dry-run",
                 # Add minimal required options that won't be used in create-issues mode
-                "--release-name", "dummy",
-                "--release-tag", "dummy",
-                "--release-type", "dev",
-                "--release-date", "2025-01-01",
-                "--project-url", "https://github.com/test/repo",
-                "--software-name", "dummy",
-                "--software-version", "1.0.0",
-                "--output-file", "dummy.json",
-            ]
+                "--release-name",
+                "dummy",
+                "--release-tag",
+                "dummy",
+                "--release-type",
+                "dev",
+                "--release-date",
+                "2025-01-01",
+                "--project-url",
+                "https://github.com/test/repo",
+                "--software-name",
+                "dummy",
+                "--software-version",
+                "1.0.0",
+                "--output-file",
+                "dummy.json",
+            ],
         )
 
         # Should succeed in dry run mode
