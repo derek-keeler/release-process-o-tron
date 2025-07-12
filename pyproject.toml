@@ -7,7 +7,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "release-process-o-tron"
-friendly-name = "Release Process-o-tron"
 version = "0.1.0"
 description = "Generate hierarchical work items for your upcoming release, and see the state of the release throughout its duration."
 readme = "README.md"
