@@ -159,6 +159,76 @@ def test_json_structure_dev_release() -> None:
                     assert "priority" in child
 
 
+def test_create_issues_dry_run() -> None:
+    """Test that create-issues command works with dry run."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        # First generate a JSON file
+        result = runner.invoke(
+            main,
+            [
+                "--release-name",
+                "Test Release",
+                "--release-tag",
+                "v1.0.0",
+                "--release-type",
+                "LTS",
+                "--release-date",
+                "2025-01-20",
+                "--project-url",
+                "https://github.com/test/test",
+                "--software-name",
+                "Test Software",
+                "--software-version",
+                "1.0.0",
+                "--output-file",
+                "test_release.json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert Path("test_release.json").exists()
+
+        # Now test create-issues with dry run
+        result = runner.invoke(
+            main,
+            [
+                "--create-issues",
+                "--input-file",
+                "test_release.json",
+                "--github-repo",
+                "test/test",
+                "--github-token",
+                "dummy-token",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "DRY RUN: No actual issues will be created" in result.output
+        assert "Successfully created 0 issues" in result.output
+
+
+def test_create_issues_missing_parameters() -> None:
+    """Test that create-issues command fails with missing parameters."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        # Test with missing input file
+        result = runner.invoke(
+            main,
+            [
+                "--create-issues",
+                "--github-repo",
+                "test/test",
+                "--github-token",
+                "dummy-token",
+            ],
+        )
+
+        assert result.exit_code != 0
+        assert "Missing required options for issue creation" in result.output
+
+
 def test_json_structure_lts_release() -> None:
     """Test that generated JSON includes publication tasks for LTS release."""
     runner = CliRunner()

@@ -1,0 +1,100 @@
+name: Create Release Issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Name of the release'
+        required: true
+        type: string
+      release_tag:
+        description: 'Git tag for the release'
+        required: true
+        type: string
+      release_type:
+        description: 'Type of release'
+        required: true
+        type: choice
+        options:
+          - LTS
+          - dev
+          - experimental
+          - early-access
+      release_date:
+        description: 'Release date in YYYY-MM-DD format'
+        required: true
+        type: string
+      project_url:
+        description: 'URL of the project repository'
+        required: true
+        type: string
+      software_name:
+        description: 'Name of the software being released'
+        required: true
+        type: string
+      software_version:
+        description: 'Version of the software being released'
+        required: true
+        type: string
+      comments:
+        description: 'Additional comments about the release (optional)'
+        required: false
+        type: string
+      github_repo:
+        description: 'GitHub repository in format owner/repo'
+        required: true
+        type: string
+      dry_run:
+        description: 'Perform a dry run without creating actual issues'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  create-issues:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+    
+    - name: Generate release activities JSON
+      run: |
+        mkdir -p /tmp/release-output
+        relprocotron \
+          --release-name "${{ github.event.inputs.release_name }}" \
+          --release-tag "${{ github.event.inputs.release_tag }}" \
+          --release-type "${{ github.event.inputs.release_type }}" \
+          --release-date "${{ github.event.inputs.release_date }}" \
+          --project-url "${{ github.event.inputs.project_url }}" \
+          --software-name "${{ github.event.inputs.software_name }}" \
+          --software-version "${{ github.event.inputs.software_version }}" \
+          --output-file "/tmp/release-output/release-activities.json" \
+          ${{ github.event.inputs.comments != '' && format('--comment "{0}"', github.event.inputs.comments) || '' }}
+    
+    - name: Create GitHub issues
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        relprocotron \
+          --create-issues \
+          --input-file "/tmp/release-output/release-activities.json" \
+          --github-repo "${{ github.event.inputs.github_repo }}" \
+          --github-token "${{ secrets.GITHUB_TOKEN }}" \
+          ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+    
+    - name: Upload release activities JSON
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-activities
+        path: /tmp/release-output/release-activities.json
