@@ -436,7 +436,7 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
     with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    click.echo(f"Creating GitHub issues for release: {data['release']['name']}")
+    logging.info(f"Creating GitHub issues for release: {data['release']['name']}")
     if dry_run:
         logging.info("DRY RUN: No actual issues will be created")
 

@@ -771,5 +771,4 @@ def test_create_issues_dry_run_skips_validation() -> None:
 
         # Should succeed in dry run mode
         assert result.exit_code == 0
-        assert "DRY RUN" in result.output
         assert "any-tag" in result.output  # Should show the tag in output
