@@ -98,6 +98,16 @@ def main(
         logging.getLogger().setLevel(logging.DEBUG)
         logging.debug("Verbose mode enabled: log level set to DEBUG.")
 
+    # Obtain the github token. The token given on the command line could be a token itself,
+    # or it could be a file path to a file that only contains the token.
+    if github_token and Path(github_token).is_file():
+        try:
+            logging.debug(f"Using GitHub token from file : {github_token}")
+            github_token = Path(github_token).read_text(encoding="utf-8").strip()
+        except Exception as e:
+            logging.error(f"Error reading GitHub token file: {e}")
+            raise
+
     # Handle GitHub issue creation mode
     if create_issues:
         if not input_file or not github_repo or not github_token:
@@ -344,21 +354,91 @@ class GitHubClient:
         """
         return self._make_request("PATCH", f"/repos/{self.repo}/issues/{issue_number}", kwargs)
 
+    def list_labels(self) -> list[dict[str, Any]]:
+        """List repository labels.
+
+        Returns:
+            List of label data dictionaries
+        """
+        return [self._make_request("GET", f"/repos/{self.repo}/labels")]
+
+
+def _collect_all_tags(data: dict[str, Any]) -> set[str]:
+    """Collect all unique tags from tasks and their children.
+
+    Args:
+        data: JSON data containing tasks
+
+    Returns:
+        Set of all unique tag names
+    """
+    tags = set()
+
+    # Process all tasks
+    for task in data.get("tasks", []):
+        # Add tags from main task
+        tags.update(task.get("tags", []))
+
+        # Add tags from child tasks
+        for child in task.get("children", []):
+            tags.update(child.get("tags", []))
+
+    return tags
+
+
+def _validate_repository_labels(github_client: GitHubClient, required_tags: set[str]) -> None:
+    """Validate that all required tags exist as labels in the GitHub repository.
+
+    Args:
+        github_client: GitHub client instance
+        required_tags: Set of tag names that must exist as labels
+
+    Raises:
+        click.ClickException: If any required tags don't exist as labels
+    """
+    try:
+        # Get all labels from the repository
+        labels = github_client.list_labels()
+        existing_label_names = {label["name"] for label in labels}
+
+        # Find tags that don't exist as labels
+        missing_tags = required_tags - existing_label_names
+
+        if missing_tags:
+            missing_tags_list = sorted(missing_tags)
+            missing_tags_str = ", ".join(missing_tags_list)
+
+            error_message = f"The following tags do not exist as labels in the repository: {missing_tags_str}\n\n"
+            error_message += "You can create missing labels using one of these methods:\n\n"
+            error_message += "Using GitHub CLI:\n"
+            for tag in missing_tags_list:
+                error_message += f'  gh label create "{tag}" --description "Label for {tag} related tasks"\n'
+            error_message += "\nUsing GitHub web interface:\n"
+            error_message += f"  Visit https://github.com/{github_client.repo}/labels and click 'New label'\n\n"
+            error_message += "Alternatively, remove these tags from your JSON template file."
+
+            raise click.ClickException(error_message)
+
+    except Exception as e:
+        if isinstance(e, click.ClickException):
+            raise
+        raise click.ClickException(f"Failed to validate repository labels: {e}") from e
+
 
 def _create_github_issues(input_file: str, github_repo: str, github_token: str, dry_run: bool) -> None:
     """Create GitHub issues from JSON file."""
     # Check if input file exists first
     input_path = Path(input_file)
     if not input_path.exists():
-        raise click.ClickException(f"Input file not found: {input_file}")
+        raise FileNotFoundError(f"Input file not found: {input_file}")
 
     # Load JSON data
     with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    click.echo(f"Creating GitHub issues for release: {data['release']['name']}")
+    logging.info(f"Creating GitHub issues for release: {data['release']['name']}")
     if dry_run:
-        click.echo("DRY RUN: No actual issues will be created")
+        logging.info("DRY RUN: No actual issues will be created")
 
     # Initialize GitHub client only if not doing a dry run
     github_client = None
@@ -366,7 +446,21 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
         try:
             github_client = GitHubClient(github_token, github_repo)
         except Exception as e:
-            raise click.ClickException(f"Failed to initialize GitHub client: {e}") from e
+            raise RuntimeError(f"Failed to initialize GitHub client: {e}") from e
+
+    # Collect all tags from the JSON data
+    all_tags = _collect_all_tags(data)
+
+    if all_tags:
+        logging.info(f"Found {len(all_tags)} unique tags in JSON: {', '.join(sorted(all_tags))}")
+
+        # Validate that all tags exist as labels in the repository (unless dry run)
+        if not dry_run and github_client:
+            logging.info("Validating that all tags exist as labels in the repository...")
+            _validate_repository_labels(github_client, all_tags)
+            logging.info("✓ All tags validated successfully")
+    else:
+        logging.info("No tags found in JSON data")
 
     # Sort tasks by priority for proper ordering
     tasks = sorted(data["tasks"], key=lambda x: x.get("priority", 999))
@@ -400,11 +494,11 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
                     updated_body = parent_issue["body"] + "\n\n**Sub-tasks:**\n" + "\n".join(child_task_list)
                     if github_client:
                         github_client.update_issue(parent_issue["number"], body=updated_body)
-                        click.echo(f"  Updated parent issue #{parent_issue['number']} with sub-task list")
+                        logging.info(f"  Updated parent issue #{parent_issue['number']} with sub-task list")
                 except Exception as e:  # noqa: BLE001 - GitHub API can raise various exceptions
-                    click.echo(f"  Warning: Failed to update parent issue with sub-tasks: {e}", err=True)
+                    logging.warning(f"  Warning: Failed to update parent issue with sub-tasks: {e}")
 
-    click.echo(f"Successfully created {total_created} issues")
+    logging.info(f"Successfully created {total_created} issues")
 
 
 def _create_issue_from_task(

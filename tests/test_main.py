@@ -2,10 +2,12 @@
 
 import json
 from pathlib import Path
+from unittest.mock import Mock, patch
 
+import pytest
 from click.testing import CliRunner
 
-from relprocotron.__main__ import main
+from relprocotron.__main__ import GitHubClient, _collect_all_tags, _validate_repository_labels, main
 
 
 def test_main_help() -> None:
@@ -432,3 +434,341 @@ def test_priority_field_in_generated_json() -> None:
         # Check that tasks are in different priority groups
         priorities = [task["priority"] for task in data["tasks"]]
         assert len(set(priorities)) > 1, "Tasks should have different priorities for ordering"
+
+
+def test_collect_all_tags() -> None:
+    """Test that _collect_all_tags correctly extracts all unique tags from JSON data."""
+    # Test data with various tag configurations
+    test_data = {
+        "tasks": [
+            {
+                "title": "Task 1",
+                "tags": ["tag1", "tag2"],
+                "children": [
+                    {"title": "Child 1", "tags": ["tag3", "tag1"]},  # tag1 is duplicate
+                    {"title": "Child 2", "tags": ["tag4"]},
+                ],
+            },
+            {
+                "title": "Task 2",
+                "tags": ["tag2", "tag5"],  # tag2 is duplicate
+                "children": [
+                    {"title": "Child 3", "tags": []},  # empty tags
+                ],
+            },
+            {
+                "title": "Task 3",
+                "tags": ["tag6"],
+                # no children
+            },
+        ]
+    }
+
+    result = _collect_all_tags(test_data)
+    expected = {"tag1", "tag2", "tag3", "tag4", "tag5", "tag6"}
+    assert result == expected
+
+
+def test_collect_all_tags_empty_data() -> None:
+    """Test _collect_all_tags with empty or missing data."""
+    # Empty tasks
+    assert _collect_all_tags({"tasks": []}) == set()
+
+    # Missing tasks key
+    assert _collect_all_tags({}) == set()
+
+    # Tasks with no tags
+    test_data = {
+        "tasks": [
+            {"title": "Task 1"},  # missing tags key
+            {"title": "Task 2", "tags": []},  # empty tags
+        ]
+    }
+    assert _collect_all_tags(test_data) == set()
+
+
+def test_validate_repository_labels_success() -> None:
+    """Test _validate_repository_labels when all tags exist as labels."""
+    # Mock GitHub client
+    mock_client = Mock(spec=GitHubClient)
+    mock_client.list_labels.return_value = [
+        {"name": "tag1", "description": "Tag 1"},
+        {"name": "tag2", "description": "Tag 2"},
+        {"name": "tag3", "description": "Tag 3"},
+    ]
+    mock_client.repo = "test/repo"
+
+    # Test with tags that all exist
+    required_tags = {"tag1", "tag2"}
+
+    # Should not raise exception
+    _validate_repository_labels(mock_client, required_tags)
+
+    # Verify labels were fetched
+    mock_client.list_labels.assert_called_once()
+
+
+def test_validate_repository_labels_missing_tags() -> None:
+    """Test _validate_repository_labels when some tags don't exist as labels."""
+    # Mock GitHub client
+    mock_client = Mock(spec=GitHubClient)
+    mock_client.list_labels.return_value = [
+        {"name": "tag1", "description": "Tag 1"},
+        {"name": "tag2", "description": "Tag 2"},
+    ]
+    mock_client.repo = "test/repo"
+
+    # Test with tags where some don't exist
+    required_tags = {"tag1", "tag2", "tag3", "tag4"}
+
+    # Should raise ClickException
+    with pytest.raises(Exception) as exc_info:
+        _validate_repository_labels(mock_client, required_tags)
+
+    error_message = str(exc_info.value)
+    assert "tag3, tag4" in error_message
+    assert "gh label create" in error_message
+    assert "https://github.com/test/repo/labels" in error_message
+
+
+def test_validate_repository_labels_api_error() -> None:
+    """Test _validate_repository_labels when GitHub API fails."""
+    # Mock GitHub client with API error
+    mock_client = Mock(spec=GitHubClient)
+    mock_client.list_labels.side_effect = Exception("API error")
+    mock_client.repo = "test/repo"
+
+    required_tags = {"tag1"}
+
+    # Should raise ClickException wrapping the original error
+    with pytest.raises(Exception) as exc_info:
+        _validate_repository_labels(mock_client, required_tags)
+
+    error_message = str(exc_info.value)
+    assert "Failed to validate repository labels" in error_message
+
+
+def test_create_issues_with_tag_validation() -> None:
+    """Test issue creation with tag validation enabled."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem():
+        # Create a test JSON file with tags
+        test_data = {
+            "release": {"name": "Test Release"},
+            "tasks": [
+                {
+                    "title": "Task 1",
+                    "description": ["Description"],
+                    "project": "Test",
+                    "tags": ["bug", "feature"],
+                    "category": "Testing",
+                    "priority": 1,
+                    "children": [
+                        {
+                            "title": "Subtask 1",
+                            "description": ["Subdescription"],
+                            "project": "Test",
+                            "tags": ["enhancement"],
+                            "category": "Testing",
+                            "priority": 1,
+                        }
+                    ],
+                }
+            ],
+        }
+
+        Path("test_issues.json").write_text(json.dumps(test_data), encoding="utf-8")
+
+        # Mock the GitHub client methods
+        with patch("relprocotron.__main__.GitHubClient") as mock_github_client_class:
+            mock_client = Mock()
+            mock_github_client_class.return_value = mock_client
+
+            # Mock labels that exist in the repository
+            mock_client.list_labels.return_value = [
+                {"name": "bug", "description": "Bug reports"},
+                {"name": "feature", "description": "New features"},
+                {"name": "enhancement", "description": "Enhancements"},
+            ]
+
+            # Mock successful issue creation
+            mock_client.create_issue.return_value = {"number": 123, "url": "https://github.com/test/repo/issues/123"}
+            mock_client.update_issue.return_value = {"number": 123}
+
+            # Test issue creation with validation
+            result = runner.invoke(
+                main,
+                [
+                    "--create-issues",
+                    "--input-file",
+                    "test_issues.json",
+                    "--github-repo",
+                    "test/repo",
+                    "--github-token",
+                    "fake_token",
+                    # Add minimal required options that won't be used in create-issues mode
+                    "--release-name",
+                    "dummy",
+                    "--release-tag",
+                    "dummy",
+                    "--release-type",
+                    "dev",
+                    "--release-date",
+                    "2025-01-01",
+                    "--project-url",
+                    "https://github.com/test/repo",
+                    "--software-name",
+                    "dummy",
+                    "--software-version",
+                    "1.0.0",
+                    "--output-file",
+                    "dummy.json",
+                ],
+            )
+
+            # Should succeed
+            assert result.exit_code == 0
+
+            # Verify validation was called
+            mock_client.list_labels.assert_called_once()
+
+            # Verify issues were created
+            assert mock_client.create_issue.call_count == 2  # 1 parent + 1 child
+
+
+def test_create_issues_missing_tags_validation() -> None:
+    """Test issue creation fails when required tags don't exist."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem():
+        # Create a test JSON file with tags
+        test_data = {
+            "release": {"name": "Test Release"},
+            "tasks": [
+                {
+                    "title": "Task 1",
+                    "description": ["Description"],
+                    "project": "Test",
+                    "tags": ["missing-tag"],  # This tag doesn't exist
+                    "category": "Testing",
+                    "priority": 1,
+                }
+            ],
+        }
+
+        Path("test_issues.json").write_text(json.dumps(test_data), encoding="utf-8")
+
+        # Mock the GitHub client methods
+        with patch("relprocotron.__main__.GitHubClient") as mock_github_client_class:
+            mock_client = Mock()
+            mock_github_client_class.return_value = mock_client
+            mock_client.repo = "test/repo"  # Set the repo attribute
+
+            # Mock labels that exist in the repository (without the required tag)
+            mock_client.list_labels.return_value = [
+                {"name": "bug", "description": "Bug reports"},
+                {"name": "feature", "description": "New features"},
+            ]
+
+            # Test issue creation with validation
+            result = runner.invoke(
+                main,
+                [
+                    "--create-issues",
+                    "--input-file",
+                    "test_issues.json",
+                    "--github-repo",
+                    "test/repo",
+                    "--github-token",
+                    "fake_token",
+                    # Add minimal required options that won't be used in create-issues mode
+                    "--release-name",
+                    "dummy",
+                    "--release-tag",
+                    "dummy",
+                    "--release-type",
+                    "dev",
+                    "--release-date",
+                    "2025-01-01",
+                    "--project-url",
+                    "https://github.com/test/repo",
+                    "--software-name",
+                    "dummy",
+                    "--software-version",
+                    "1.0.0",
+                    "--output-file",
+                    "dummy.json",
+                ],
+            )
+
+            # Should fail due to missing tags
+            assert result.exit_code != 0
+
+            # Verify error message contains expected content
+            assert "missing-tag" in result.output
+            assert "gh label create" in result.output
+            assert "https://github.com/test/repo/labels" in result.output
+
+            # Verify validation was called but no issues were created
+            mock_client.list_labels.assert_called_once()
+            mock_client.create_issue.assert_not_called()
+
+
+def test_create_issues_dry_run_skips_validation() -> None:
+    """Test that dry run mode skips tag validation."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem():
+        # Create a test JSON file with tags
+        test_data = {
+            "release": {"name": "Test Release"},
+            "tasks": [
+                {
+                    "title": "Task 1",
+                    "description": ["Description"],
+                    "project": "Test",
+                    "tags": ["any-tag"],  # Tag doesn't need to exist in dry run
+                    "category": "Testing",
+                    "priority": 1,
+                }
+            ],
+        }
+
+        Path("test_issues.json").write_text(json.dumps(test_data), encoding="utf-8")
+
+        # Test dry run mode
+        result = runner.invoke(
+            main,
+            [
+                "--create-issues",
+                "--input-file",
+                "test_issues.json",
+                "--github-repo",
+                "test/repo",
+                "--github-token",
+                "fake_token",
+                "--dry-run",
+                # Add minimal required options that won't be used in create-issues mode
+                "--release-name",
+                "dummy",
+                "--release-tag",
+                "dummy",
+                "--release-type",
+                "dev",
+                "--release-date",
+                "2025-01-01",
+                "--project-url",
+                "https://github.com/test/repo",
+                "--software-name",
+                "dummy",
+                "--software-version",
+                "1.0.0",
+                "--output-file",
+                "dummy.json",
+            ],
+        )
+
+        # Should succeed in dry run mode
+        assert result.exit_code == 0
+        assert "any-tag" in result.output  # Should show the tag in output
