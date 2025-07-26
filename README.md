@@ -2,38 +2,16 @@
 
 Generate hierarchical work items for your upcoming release, and see the state of the release throughout its duration.
 
-Release Process-O-Tron is a command-line tool that helps software teams organize and track their release processes. It generates structured JSON files containing hierarchical work items (tasks) for different phases of a software release, including code quality checks, testing, package building, documentation updates, and publication. The tool can also create GitHub issues directly from the generated work items.
+Release Process-O-Tron is a command-line tool that generates structured JSON files containing work items for software releases, including code quality, testing, packaging, documentation, and publication tasks.
 
-## Installation
+## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/derek-keeler/release-process-o-tron.git
-cd release-process-o-tron
-
-# Install Python dependencies
+# Install
 pip install -e .
 
-# Verify installation
-relprocotron --help
+# Run
+relprocotron --release-name "v1.0.0" --release-tag "v1.0.0" --release-type "dev" --release-date "2025-01-20" --project-url "https://github.com/user/repo" --software-name "MyApp" --software-version "1.0.0" --output-file "release.json"
 ```
 
-## Example Usage
-
-To generate a JSON file of work items for your release:
-
-```bash
-relprocotron \
-  --release-name "My Project v2.1.0" \
-  --release-tag "v2.1.0" \
-  --release-type "LTS" \
-  --release-date "2025-02-15" \
-  --project-url "https://github.com/myorg/myproject" \
-  --software-name "My Project" \
-  --software-version "2.1.0" \
-  --output-file "release-v2.1.0.json"
-```
-
-## Development
-
-For development setup, testing, and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+For development setup and contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
