@@ -102,10 +102,10 @@ def main(
     # or it could be a file path to a file that only contains the token.
     if github_token and Path(github_token).is_file():
         try:
+            logging.debug(f"Using GitHub token from file : {github_token}")
             github_token = Path(github_token).read_text(encoding="utf-8").strip()
-            logging.debug(f"Using GitHub token from file: {github_token}")
         except Exception as e:
-            click.echo(f"Error reading GitHub token file: {e}", err=True)
+            logging.error(f"Error reading GitHub token file: {e}")
             raise
 
     # Handle GitHub issue creation mode
@@ -360,7 +360,7 @@ class GitHubClient:
         Returns:
             List of label data dictionaries
         """
-        return self._make_request("GET", f"/repos/{self.repo}/labels")
+        return [self._make_request("GET", f"/repos/{self.repo}/labels")]
 
 
 def _collect_all_tags(data: dict[str, Any]) -> set[str]:
@@ -430,7 +430,7 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
     # Check if input file exists first
     input_path = Path(input_file)
     if not input_path.exists():
-        raise click.ClickException(f"Input file not found: {input_file}")
+        raise FileNotFoundError(f"Input file not found: {input_file}")
 
     # Load JSON data
     with input_path.open("r", encoding="utf-8") as f:
@@ -438,7 +438,7 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
 
     click.echo(f"Creating GitHub issues for release: {data['release']['name']}")
     if dry_run:
-        click.echo("DRY RUN: No actual issues will be created")
+        logging.info("DRY RUN: No actual issues will be created")
 
     # Initialize GitHub client only if not doing a dry run
     github_client = None
@@ -446,21 +446,21 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
         try:
             github_client = GitHubClient(github_token, github_repo)
         except Exception as e:
-            raise click.ClickException(f"Failed to initialize GitHub client: {e}") from e
+            raise RuntimeError(f"Failed to initialize GitHub client: {e}") from e
 
     # Collect all tags from the JSON data
     all_tags = _collect_all_tags(data)
 
     if all_tags:
-        click.echo(f"Found {len(all_tags)} unique tags in JSON: {', '.join(sorted(all_tags))}")
+        logging.info(f"Found {len(all_tags)} unique tags in JSON: {', '.join(sorted(all_tags))}")
 
         # Validate that all tags exist as labels in the repository (unless dry run)
         if not dry_run and github_client:
-            click.echo("Validating that all tags exist as labels in the repository...")
+            logging.info("Validating that all tags exist as labels in the repository...")
             _validate_repository_labels(github_client, all_tags)
-            click.echo("✓ All tags validated successfully")
+            logging.info("✓ All tags validated successfully")
     else:
-        click.echo("No tags found in JSON data")
+        logging.info("No tags found in JSON data")
 
     # Sort tasks by priority for proper ordering
     tasks = sorted(data["tasks"], key=lambda x: x.get("priority", 999))
@@ -494,11 +494,11 @@ def _create_github_issues(input_file: str, github_repo: str, github_token: str, 
                     updated_body = parent_issue["body"] + "\n\n**Sub-tasks:**\n" + "\n".join(child_task_list)
                     if github_client:
                         github_client.update_issue(parent_issue["number"], body=updated_body)
-                        click.echo(f"  Updated parent issue #{parent_issue['number']} with sub-task list")
+                        logging.info(f"  Updated parent issue #{parent_issue['number']} with sub-task list")
                 except Exception as e:  # noqa: BLE001 - GitHub API can raise various exceptions
-                    click.echo(f"  Warning: Failed to update parent issue with sub-tasks: {e}", err=True)
+                    logging.warning(f"  Warning: Failed to update parent issue with sub-tasks: {e}")
 
-    click.echo(f"Successfully created {total_created} issues")
+    logging.info(f"Successfully created {total_created} issues")
 
 
 def _create_issue_from_task(
